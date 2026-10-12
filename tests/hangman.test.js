@@ -26,14 +26,17 @@ test('elf punches are shared cosmetics, with no secret, life, pause or scoring c
  let r=lock(ready(),'TILE TRIM');r=change(r,'jack','hangman_pause');
  const before=view(r,'stu').round;
  for(const id of ['richard','stu','jack','lauren','richard'])r=change(r,id,'hangman_bonk',{direction:1});
- const after=view(r,'stu').round;assert.equal(after.elfReaction.hits.length,5);assert.ok(after.elfReaction.sleepUntil>time);
+ const after=view(r,'stu').round;assert.equal(after.elfReaction.hits.length,5);assert.ok(after.elfReaction.gagUntil>time);
  for(const key of ['maskedWord','secretWord','answer','mistakes','remaining','paused','revealed'])assert.deepEqual(after[key],before[key]);
  assert.deepEqual(after.guesses,before.guesses);assert.equal(r.ledger.length,0);assert.equal(JSON.stringify(view(r,'stu')).includes('TILE TRIM'),false);
  const asleep=after.elfReaction;r=change(r,'jack','hangman_bonk',{direction:-1});assert.deepEqual(view(r).round.elfReaction,asleep);
  r=change(r,'jack','hangman_pause');r=change(r,'stu','hangman_solve',{answer:'TILE TRIM'});assert.equal(r.ledger.length,3);
- r=change(r,'jack','hangman_next');assert.equal(view(r).round.elfReaction.hits.length,0);assert.equal(view(r).round.elfReaction.sleepUntil,0);
+ r=change(r,'jack','hangman_next');assert.equal(view(r).round.elfReaction.hits.length,0);assert.equal(view(r).round.elfReaction.gagUntil,0);
  assert.throws(()=>change(r,'jack','hangman_bonk',{direction:1,index:0}),/moved on/);
  assert.throws(()=>change(r,'jack','hangman_bonk',{direction:20}),/valid tap/);
  assert.throws(()=>transition(r,{key:'observer'},{type:'hangman_bonk',game:'hangman',index:1,roundId:r.rounds.hangman.id,direction:1},seen,time),/join as a player/);
 });
 test('existing live rounds without reaction state upgrade when tapped',()=>{let r=ready();delete r.rounds.hangman.elfReaction;assert.deepEqual(view(r).round.elfReaction.hits,[]);r=change(r,'jack','hangman_bonk',{direction:1});assert.equal(view(r).round.elfReaction.hits.length,1);});
+
+
+test('puncher identity and avatar are taken from the session, not forged request fields',()=>{let r=ready();r=change(r,'lauren','hangman_bonk',{direction:1,actor:{id:'jack',name:'Jack',avatar:0},avatar:0,player:'jack'});assert.deepEqual(view(r,'stu').round.elfReaction.hits[0].actor,{id:'lauren',name:'Lauren',avatar:2});assert.equal(view(r).round.elfReaction.hits[0].direction,-1);});

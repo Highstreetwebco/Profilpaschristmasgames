@@ -15,7 +15,7 @@ test('Pictionary is game one: two random non-repeating prompts per player, word 
  let r=ready();assert.equal(view(r).games[0].id,'pictionary');assert.equal(view(r).round.total,8);assert.equal(new Set(r.rounds.pictionary.deck).size,8);assert.deepEqual(r.rounds.pictionary.turns,['richard','stu','jack','lauren','richard','stu','jack','lauren']);
  assert.equal(view(r,'richard').round.secretWord,null);assert.throws(()=>change(r,'jack','pictionary_start'),/Only the drawer/);
  r=change(r,'richard','pictionary_start');assert.equal(r.rounds.pictionary.deadline,time+120000);assert.equal(view(r,'richard').round.secretWord,word(r));
- for(const who of ['stu','jack','lauren']){const s=view(r,who);assert.equal(s.round.secretWord,null);assert.equal(s.round.answer,null);assert.equal('deck' in s.round,false);assert.equal(JSON.stringify(s).includes(word(r)),false);}
+ for(const who of ['stu','jack','lauren']){const s=view(r,who);assert.equal(s.round.secretWord,null);assert.equal(s.round.answer,null);assert.equal('deck' in s.round,false);assert.equal(JSON.stringify(s.round).includes(word(r)),false);}
  assert.equal(snapshot(r,{key:'observer'},seen,time).round.secretWord,null);
  assert.throws(()=>change(r,'jack','reveal'),/Pictionary controls/);assert.throws(()=>change(r,'jack','performer',{player:'jack'}),/Pictionary controls/);
 });

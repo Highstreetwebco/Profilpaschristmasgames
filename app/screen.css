@@ -38,3 +38,7 @@ html,body{height:100%;overflow:hidden}
 .gallows-piece{stroke-dasharray:1;stroke-dashoffset:0;animation:build-gallows .45s ease-out both}
 @keyframes build-gallows{from{stroke-dashoffset:1;opacity:.25}to{stroke-dashoffset:0;opacity:1}}
 @media(prefers-reduced-motion:reduce){.gallows-piece{animation:none}}
+.elf-puppet-layer{pointer-events:none;overflow:hidden}.elf-puppet-layer canvas{display:block;width:480px;height:355px}.hangman-layout{grid-template-columns:minmax(250px,38%) minmax(0,1fr)}.elf-play-controls>span{max-width:235px}
+@media(max-width:900px) and (min-width:701px){.hangman-layout{grid-template-columns:36% minmax(0,1fr)}}
+@media(max-width:700px){.hangman-layout{grid-template-columns:1fr}.hangman-scene{grid-template-columns:minmax(0,1fr) 170px}.interactive-elf .hangman-elf{height:145px}.elf-play-controls>span{max-width:125px}}
+@media(max-width:380px){.hangman-scene{grid-template-columns:minmax(0,1fr) 140px}.interactive-elf .hangman-elf{height:120px}}
