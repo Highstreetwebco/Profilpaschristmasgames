@@ -4,20 +4,17 @@ import {newRoom,RoomError,transition,snapshot} from '../../../lib/room-engine.js
 export const dynamic='force-dynamic';
 const ROOM='profilpas-christmas-2026';
 const COOKIE='profilpas_player';
-type Actor={key:string;authId:string|null;hostAllowed:boolean};
+type Actor={key:string};
 type Row={version:number;body:string};
 const json=(data:unknown,status=200,cookie?:string)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json','Cache-Control':'no-store, private','Vary':'Cookie','X-Content-Type-Options':'nosniff',...(cookie?{'Set-Cookie':cookie}:{})}});
 function db(){if(!env.DB)throw new RoomError('The shared game room is not connected yet.',503);return env.DB;}
 async function identity(req:Request){
- const authId=req.headers.get('oai-authenticated-user-id');
- const email=req.headers.get('oai-authenticated-user-email')?.toLowerCase().trim();
- const allowed=env.HOST_EMAIL?.toLowerCase().trim();
  let token=req.headers.get('cookie')?.split(';').map(s=>s.trim()).find(s=>s.startsWith(COOKIE+'='))?.slice(COOKIE.length+1);
  let cookie:string|undefined;
  if(!token||!/^[a-f0-9]{64}$/.test(token)){token=Array.from(crypto.getRandomValues(new Uint8Array(32)),v=>v.toString(16).padStart(2,'0')).join('');cookie=`${COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000`;}
  const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(token));
  const hash=Array.from(new Uint8Array(digest),v=>v.toString(16).padStart(2,'0')).join('');
- return{actor:{key:authId?'user:'+authId:'session:'+hash,authId,hostAllowed:!!authId&&!!allowed&&email===allowed} as Actor,cookie};
+ return{actor:{key:'session:'+hash} as Actor,cookie};
 }
 async function load(){const database=db();await database.prepare('INSERT OR IGNORE INTO game_rooms(id,version,body) VALUES(?,0,?)').bind(ROOM,JSON.stringify(newRoom())).run();return await database.prepare('SELECT version,body FROM game_rooms WHERE id=?').bind(ROOM).first<Row>();}
 async function heartbeat(actor:Actor,now:number){await db().prepare('INSERT INTO game_presence(id,last_seen) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET last_seen=excluded.last_seen').bind(actor.key,now).run();}

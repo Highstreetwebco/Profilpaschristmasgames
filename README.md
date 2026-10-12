@@ -10,7 +10,7 @@ Source: https://github.com/Highstreetwebco/Profilpaschristmasgames
 
 ## Player flow
 
-1. Each person opens the same link on their device and chooses their own name.
+1. Each person opens the same link on their device and chooses their own name. No account or sign-in is needed. Whoever selects Jack becomes the ringmaster.
 2. Their card becomes ready on every screen. A name cannot be claimed twice.
 3. When all four players are ready and connected, Jack starts the session.
 4. Jack selects a round; all screens follow automatically.
@@ -25,7 +25,7 @@ The site now runs a Vinext/Cloudflare Worker with its own D1 database. It polls 
 
 There was no dedicated Christmas project in the connected Supabase account, only an unrelated Barford golf project. That project was not changed. The game database is provisioned by Sites via the `DB` binding.
 
-Jack signs in using the site's owner account. `HOST_EMAIL` is stored as a protected runtime variable; the server binds the Jack role to that authenticated site's user ID on first join. Guest selection never confers host authority. Platform identity headers are consumed only server-side. Anonymous-compatible guest sessions use random HttpOnly Secure SameSite cookies, hashed before storage. Guest readiness depends on the hosting audience permitting entry. The site currently retains its owner-private audience: Richard, Stu and Lauren need access grants, or an explicitly approved switch to public link access, before they can enter from their own accounts/devices.
+Anyone with the game link can enter without signing in. Selecting Jack gives that browser the ringmaster controls; the other three names are players. A random HttpOnly Secure SameSite cookie remembers each browser, and only a hash is stored in the room. Host authority is based solely on the selected Jack slot, with no email or platform account requirement. An active name cannot be claimed twice. In the lobby, a name becomes available to another browser after its previous device has been disconnected for 20 seconds.
 
 Changes use a versioned compare-and-swap write with retry so concurrent answers and joins are not lost. Actions carry request IDs; stale card actions are rejected. Correct answers and other players' submissions are withheld from API responses until the reveal. Game source is public in GitHub, so the quiz is an informal team activity rather than a cheat-proof examination.
 
@@ -35,7 +35,6 @@ Changes use a versioned compare-and-swap write with retry so concurrent answers 
 - `npm run test:integration`: actual API handlers against an isolated Miniflare/D1 database, using four independent sessions. Covers concurrent joins/answers, reconnect, hidden answers, shared scoring, host-only actions, stale requests and cross-origin checks.
 - Use the Sites skill's build and publication helpers. Static GitHub Pages alone cannot run this version's shared backend.
 - Schema: `db/schema.ts`; generated migration: `drizzle/0000_large_roulette.sql`.
-- Set the protected production `HOST_EMAIL` runtime value to the intended host account before deployment. Do not put its value or any credential in the repository.
 
 Browser visual QA was unavailable in the build environment. Core state-machine and actual API integration checks passed. Review on the meeting devices before the event.
 
