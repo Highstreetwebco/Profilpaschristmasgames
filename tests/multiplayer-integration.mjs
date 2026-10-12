@@ -24,21 +24,30 @@ try{
  assert.equal((await players.stu.request({type:'start'})).status,403);
  const started=await players.jack.request({type:'start'});assert.equal(started.status,200);assert.equal(started.data.stage,'intro');
  assert.equal((await players.lauren.request()).data.intro.startsAt,started.data.intro.startsAt);
- assert.equal((await players.jack.request({type:'choose',game:'emoji'})).status,400);
+ assert.equal((await players.jack.request({type:'choose',game:'hangman'})).status,400);
  // Advance only the isolated test room's clock; no sleeps or production state changes.
  async function finishIntro(){const row=await db.prepare('SELECT id,body FROM game_rooms').first();const room=JSON.parse(row.body);room.intro.startsAt=Date.now()-20000;room.intro.endsAt=Date.now()-1;await db.prepare('UPDATE game_rooms SET body=? WHERE id=?').bind(JSON.stringify(room),row.id).run();}
  await finishIntro();assert.equal((await players.lauren.request()).data.stage,'menu');
- assert.equal((await players.jack.request({type:'choose',game:'emoji'})).status,200);
- assert.equal((await players.jack.request({type:'timer',game:'emoji',index:0})).status,200);
- const answers=await Promise.all(Object.values(players).map(c=>c.request({type:'answer',game:'emoji',index:0,answer:'Home Alone'})));
- for(const a of answers)assert.equal(a.status,200,JSON.stringify(a.data));
- const before=(await players.lauren.request()).data;assert.equal(before.round.answered.length,4);assert.equal(before.round.answer,null);assert.equal(before.round.answers,null);
- const revealed=await players.jack.request({type:'reveal',game:'emoji',index:0});assert.equal(revealed.status,200);
- for(const c of Object.values(players)){const s=(await c.request()).data;assert.equal(s.round.answer,'Home Alone');assert.ok(s.players.every(p=>p.score===1));}
- assert.equal((await players.stu.request({type:'next',game:'emoji',index:0})).status,403);
- assert.equal((await players.jack.request({type:'next',game:'emoji',index:0})).status,200);
- assert.equal((await players.richard.request()).data.round.index,1);
- assert.equal((await players.richard.request({type:'answer',game:'emoji',index:0,answer:'Home Alone'})).status,409);
+ const hangOpened=await players.jack.request({type:'choose',game:'hangman'});assert.equal(hangOpened.status,200);
+ const hangId=hangOpened.data.round.roundId;
+ const hang=(type,extra={})=>({type,game:'hangman',index:0,roundId:hangId,...extra});
+ assert.equal((await players.jack.request(hang('hangman_set',{word:'TILE TRIM',confirmCategory:true}))).status,403);
+ assert.equal((await players.richard.request(hang('hangman_set',{word:'TILE TRIM',confirmCategory:true}))).status,200);
+ for(const c of [players.stu,players.jack,players.lauren,observer]){const response=(await c.request()).data;assert.equal(response.round.secretWord,null);assert.equal(response.round.answer,null);assert.equal(response.round.maskedWord,'____ ____');assert.equal(JSON.stringify(response).includes('TILE TRIM'),false);}
+ assert.equal((await players.richard.request(hang('hangman_letter',{letter:'T'}))).status,403);
+ const duplicate=await Promise.all([players.stu,players.jack,players.lauren].map(c=>c.request(hang('hangman_letter',{letter:'Z'}))));
+ duplicate.forEach(r=>assert.equal(r.status,200,JSON.stringify(r.data)));
+ assert.equal((await players.richard.request()).data.round.mistakes,1);
+ const letters=await Promise.all([players.stu.request(hang('hangman_letter',{letter:'T'})),players.jack.request(hang('hangman_letter',{letter:'I'})),players.lauren.request(hang('hangman_letter',{letter:'L'}))]);
+ letters.forEach(r=>assert.equal(r.status,200,JSON.stringify(r.data)));
+ assert.equal((await players.richard.request()).data.round.maskedWord,'TIL_ T_I_');
+ const solved=await Promise.all([players.stu,players.jack,players.lauren].map(c=>c.request(hang('hangman_solve',{answer:'TILE TRIM'}))));
+ assert.equal(solved.filter(r=>r.status===200).length,1);
+ for(const c of Object.values(players)){const response=(await c.request()).data;assert.equal(response.round.outcome,'saved');assert.deepEqual(response.players.map(p=>p.score),[0,1,1,1]);assert.equal(response.round.awards.length,3);}
+ assert.equal((await players.stu.request(hang('hangman_next'))).status,403);
+ assert.equal((await players.jack.request(hang('hangman_next'))).status,200);
+ assert.equal((await players.richard.request()).data.round.performer,'stu');
+ assert.equal((await players.richard.request(hang('hangman_letter',{letter:'A'}))).status,409);
  assert.equal((await mf.dispatchFetch('https://game.test/api/room',{method:'POST',headers:{origin:'https://evil.test','content-type':'application/json'},body:JSON.stringify({type:'reset',requestId:crypto.randomUUID()})})).status,403);
 
  // Pictionary uses the same real API and D1 compare-and-swap as the deployed room.
@@ -64,7 +73,7 @@ try{
  const race=await Promise.all([players.stu,players.jack,players.lauren].map(c=>c.request(drawing('pictionary_guess',{answer:secret}))));
  assert.equal(race.filter(x=>x.status===200).length,1,JSON.stringify(race));
  const won=(await players.richard.request()).data;assert.equal(won.round.revealed,true);assert.equal(won.round.answer,secret);assert.equal(won.round.awards.length,1);assert.equal(won.round.awards[0].points,1);
- assert.equal(won.players.reduce((n,p)=>n+p.score,0),5); // Four earlier emoji points plus the sole winning guess.
+ assert.equal(won.players.reduce((n,p)=>n+p.score,0),4); // Three Hangman team points plus the sole Pictionary winning guess.
  assert.equal((await players.jack.request(drawing('pictionary_next'))).status,200);
  assert.equal((await players.lauren.request()).data.round.performer,'stu');
  assert.equal((await players.richard.request(ink)).status,409);
@@ -93,17 +102,22 @@ try{
  }
  const practice=(await observer.request()).data;assert.equal(practice.stage,'round_end');assert.equal(practice.players.find(p=>p.id==='jack').score,0);
  assert.equal((await observer.request({type:'menu'})).status,200);
- for(const game of ['emoji','list','pitch']){
+ const soloHang=(await observer.request({type:'choose',game:'hangman'})).data;
+ assert.equal(soloHang.round.total,1);assert.equal(soloHang.round.solo,true);
+ const soloWord={game:'hangman',index:0,roundId:soloHang.round.roundId};
+ assert.equal((await observer.request({type:'hangman_set',...soloWord,word:'TROWEL',confirmCategory:true})).status,200);
+ assert.equal((await observer.request({type:'hangman_letter',...soloWord,letter:'T'})).status,200);
+ assert.equal((await observer.request({type:'hangman_solve',...soloWord,answer:'TROWEL'})).status,200);
+ assert.equal((await observer.request({type:'hangman_next',...soloWord})).status,200);
+ const hangPractice=(await observer.request()).data;assert.equal(hangPractice.stage,'round_end');assert.equal(hangPractice.players.find(p=>p.id==='jack').score,0);
+ assert.equal((await observer.request({type:'menu'})).status,200);
+ for(const game of ['list','pitch']){
   assert.equal((await observer.request({type:'choose',game})).status,200);
   assert.equal((await observer.request()).data.round.performer,'jack');
-  if(game==='emoji'){
-   assert.equal((await observer.request({type:'timer',game,index:0})).status,200);
-   assert.equal((await observer.request({type:'answer',game,index:0,answer:'Home Alone'})).status,200);
-   assert.equal((await observer.request({type:'reveal',game,index:0})).status,200);
-  }else assert.equal((await observer.request({type:'award',game,index:0,points:3})).status,200);
+  assert.equal((await observer.request({type:'award',game,index:0,points:3})).status,200);
   assert.equal((await observer.request({type:'next',game,index:0})).status,200);
   assert.equal((await observer.request()).data.round.performer,'jack');
   assert.equal((await observer.request({type:'menu'})).status,200);
  }
- console.log('Pictionary integration passed: private prompt, shared streamed drawing, concurrent guesses, one winner, timeout, rotation, solo practice. Solo and intro integration passed. Integration passed: no sign-in, Jack selection and host transfer, four independent sessions, concurrent joins/answers, persistent refresh, host-only controls, hidden answers, shared scoring, synchronised progression, stale actions and cross-origin protection.');
+ console.log('Hangman integration passed: private word, concurrent shared letters, duplicate life protection, cooperative scoring, setter exclusion, one rotation and solo play. Pictionary integration passed: private prompt, shared streamed drawing, concurrent guesses, one winner, timeout, rotation, solo practice. Solo and intro integration passed. Integration passed: no sign-in, Jack selection and host transfer, four independent sessions, concurrent joins/answers, persistent refresh, host-only controls, hidden answers, shared scoring, synchronised progression, stale actions and cross-origin protection.');
 }finally{await mf.dispose();}

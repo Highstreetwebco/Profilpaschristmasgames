@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./game.css";
+import "./screen.css";
 
 export const metadata: Metadata = {
   title: "Profilpas 2026 Christmas Games",
