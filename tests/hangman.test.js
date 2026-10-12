@@ -21,3 +21,19 @@ test('solo test supports both roles and finishes without adding points',()=>{let
 test('reset clears the secret and existing score, while an unjoined observer cannot act',()=>{let r=lock(ready());assert.throws(()=>transition(r,{key:'observer'},{type:'hangman_letter',game:'hangman',index:0,roundId:r.rounds.hangman.id,letter:'A'},seen,time),/join as a player/);r=change(r,'stu','hangman_solve',{answer:'SNOWMAN'});r=change(r,'jack','reset');assert.equal(r.rounds.hangman,undefined);assert.equal(r.ledger.length,0);});
 
 test('short colleague names and longer trade names are accepted',()=>{for(const word of ['Stu','Jo','Jack Moyce-Troth','PRO TILER TOOLS','MOVEMENT JOINT']){const r=lock(ready(),word);assert.equal(view(r,'richard').round.secretWord,word.toUpperCase());}});
+
+test('elf punches are shared cosmetics, with no secret, life, pause or scoring changes',()=>{
+ let r=lock(ready(),'TILE TRIM');r=change(r,'jack','hangman_pause');
+ const before=view(r,'stu').round;
+ for(const id of ['richard','stu','jack','lauren','richard'])r=change(r,id,'hangman_bonk',{direction:1});
+ const after=view(r,'stu').round;assert.equal(after.elfReaction.hits.length,5);assert.ok(after.elfReaction.sleepUntil>time);
+ for(const key of ['maskedWord','secretWord','answer','mistakes','remaining','paused','revealed'])assert.deepEqual(after[key],before[key]);
+ assert.deepEqual(after.guesses,before.guesses);assert.equal(r.ledger.length,0);assert.equal(JSON.stringify(view(r,'stu')).includes('TILE TRIM'),false);
+ const asleep=after.elfReaction;r=change(r,'jack','hangman_bonk',{direction:-1});assert.deepEqual(view(r).round.elfReaction,asleep);
+ r=change(r,'jack','hangman_pause');r=change(r,'stu','hangman_solve',{answer:'TILE TRIM'});assert.equal(r.ledger.length,3);
+ r=change(r,'jack','hangman_next');assert.equal(view(r).round.elfReaction.hits.length,0);assert.equal(view(r).round.elfReaction.sleepUntil,0);
+ assert.throws(()=>change(r,'jack','hangman_bonk',{direction:1,index:0}),/moved on/);
+ assert.throws(()=>change(r,'jack','hangman_bonk',{direction:20}),/valid tap/);
+ assert.throws(()=>transition(r,{key:'observer'},{type:'hangman_bonk',game:'hangman',index:1,roundId:r.rounds.hangman.id,direction:1},seen,time),/join as a player/);
+});
+test('existing live rounds without reaction state upgrade when tapped',()=>{let r=ready();delete r.rounds.hangman.elfReaction;assert.deepEqual(view(r).round.elfReaction.hits,[]);r=change(r,'jack','hangman_bonk',{direction:1});assert.equal(view(r).round.elfReaction.hits.length,1);});

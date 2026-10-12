@@ -41,12 +41,19 @@ try{
  const letters=await Promise.all([players.stu.request(hang('hangman_letter',{letter:'T'})),players.jack.request(hang('hangman_letter',{letter:'I'})),players.lauren.request(hang('hangman_letter',{letter:'L'}))]);
  letters.forEach(r=>assert.equal(r.status,200,JSON.stringify(r.data)));
  assert.equal((await players.richard.request()).data.round.maskedWord,'TIL_ T_I_');
+ // Concurrent cosmetic taps and a wrong letter must preserve both updates atomically.
+ const taps=await Promise.all([players.richard.request(hang('hangman_bonk',{direction:1})),players.stu.request(hang('hangman_bonk',{direction:-1})),players.lauren.request(hang('hangman_bonk',{direction:1})),players.jack.request(hang('hangman_letter',{letter:'X'}))]);
+ taps.forEach(r=>assert.equal(r.status,200,JSON.stringify(r.data)));
+ const punched=(await players.stu.request()).data;assert.equal(punched.round.elfReaction.hits.length,3);assert.equal(punched.round.mistakes,2);assert.equal(punched.round.maskedWord,'TIL_ T_I_');assert.equal(punched.round.secretWord,null);assert.deepEqual(punched.players.map(p=>p.score),[0,0,0,0]);
+ assert.equal((await observer.request(hang('hangman_bonk',{direction:1}))).status,400);
+ const fifth=crypto.randomUUID();for(const requestId of [crypto.randomUUID(),fifth,fifth])assert.equal((await players.richard.request(hang('hangman_bonk',{direction:1,requestId}))).status,200);
+ const nap=(await players.stu.request()).data.round.elfReaction;assert.equal(nap.hits.length,5);assert.ok(nap.sleepUntil>Date.now());
  const solved=await Promise.all([players.stu,players.jack,players.lauren].map(c=>c.request(hang('hangman_solve',{answer:'TILE TRIM'}))));
  assert.equal(solved.filter(r=>r.status===200).length,1);
  for(const c of Object.values(players)){const response=(await c.request()).data;assert.equal(response.round.outcome,'saved');assert.deepEqual(response.players.map(p=>p.score),[0,1,1,1]);assert.equal(response.round.awards.length,3);}
  assert.equal((await players.stu.request(hang('hangman_next'))).status,403);
  assert.equal((await players.jack.request(hang('hangman_next'))).status,200);
- assert.equal((await players.richard.request()).data.round.performer,'stu');
+ assert.equal((await players.richard.request()).data.round.performer,'stu');assert.equal((await players.richard.request()).data.round.elfReaction.hits.length,0);
  assert.equal((await players.richard.request(hang('hangman_letter',{letter:'A'}))).status,409);
  assert.equal((await mf.dispatchFetch('https://game.test/api/room',{method:'POST',headers:{origin:'https://evil.test','content-type':'application/json'},body:JSON.stringify({type:'reset',requestId:crypto.randomUUID()})})).status,403);
 
