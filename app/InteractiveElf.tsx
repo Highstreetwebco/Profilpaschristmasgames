@@ -3,7 +3,18 @@ import {useEffect,useId,useRef,useState} from 'react';
 import {bonkElf,elfPose,newElfReaction} from '../lib/elf-reactions.js';
 export type ElfReaction={hits:{id:string;at:number;direction:number}[];sleepAt:number;sleepUntil:number};
 const sprites=['jack','stu','lauren','richard'];
-type Props={avatar:number;name:string;reaction:ElfReaction;roundId:string;index:number;clockOffset:number;connected:boolean;saved:boolean;send:(command:Record<string,unknown>)=>Promise<unknown>};
+type Props={avatar:number;name:string;mistakes:number;reaction:ElfReaction;roundId:string;index:number;clockOffset:number;connected:boolean;saved:boolean;send:(command:Record<string,unknown>)=>Promise<unknown>};
+const frameParts=[
+ {name:'base',path:'M33 338H320'},
+ {name:'upright',path:'M66 336V27'},
+ {name:'top beam',path:'M66 27H205'},
+ {name:'top brace',path:'M66 73L112 27'},
+ {name:'foot brace',path:'M66 290L112 338'},
+ {name:'rope',path:'M205 30V51'}
+];
+export function Gallows({mistakes}:{mistakes:number}){
+ return <g className="elf-gallows" fill="none" stroke="#bfa87d" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round">{frameParts.slice(0,Math.max(0,Math.min(6,mistakes))).map((part,index)=><path key={part.name} className="gallows-piece" data-frame-step={index+1} d={part.path} pathLength="1" strokeWidth={part.name==='rope'?3:8}/>)}</g>;
+}
 // Both expressions belong to the same complete, transparent full-body character.
 export function ElfArtwork({avatar,asleep=false}:{avatar:number;asleep?:boolean}){
  return <svg x="115" y="52" width="180" height="270" viewBox={`${asleep?1024:0} 0 1024 1536`} overflow="hidden"><image href={`/assets/${sprites[avatar]||'jack'}-full-elf.webp`} width="2048" height="1536" preserveAspectRatio="none"/></svg>;
@@ -34,7 +45,7 @@ export default function InteractiveElf(props:Props){
    <svg className="hangman-elf" viewBox="0 0 360 355" aria-hidden="true">
     <defs><linearGradient id={clip} x2="0" y2="1"><stop stopColor="#eed19a" stopOpacity=".35"/><stop offset="1" stopColor="#eed19a" stopOpacity="0"/></linearGradient></defs>
     <ellipse cx="205" cy="332" rx="78" ry="9" fill="#031b16" opacity=".5"/>
-    <g className="elf-gallows" fill="none" stroke="#bfa87d" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round"><path d="M33 338H320M66 336V27H205M66 73L112 27"/><path d="M205 30V51" strokeWidth="3"/></g>
+    <Gallows mistakes={props.mistakes}/>
     <g ref={body}><g ref={awake}><ElfArtwork avatar={props.avatar}/></g><g ref={asleep} opacity="0"><ElfArtwork avatar={props.avatar} asleep/></g>
      <g ref={stars} opacity="0" fill="#ffe094" stroke="#ad7830" strokeWidth=".4">{[0,120,240].map(a=><g key={a} transform={`rotate(${a}) translate(68 0)`}><path d="M0-15 4-4 15-4 6 3 9 14 0 7-9 14-6 3-15-4-4-4Z" transform={`rotate(${-a}) scale(1 2.6)`}/></g>)}</g>
     </g>
