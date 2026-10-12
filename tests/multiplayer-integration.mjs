@@ -22,7 +22,12 @@ try{
  const observer=client();await observer.request();assert.equal((await observer.request({type:'join',player:'richard'})).status,409);assert.equal((await observer.request({type:'join',player:'jack'})).status,409);
  for(const[name,c]of Object.entries(players)){const s=(await c.request()).data;assert.equal(s.me,name);assert.equal(s.readyCount,4);assert.equal(s.isHost,name==='jack');}
  assert.equal((await players.stu.request({type:'start'})).status,403);
- assert.equal((await players.jack.request({type:'start'})).status,200);
+ const started=await players.jack.request({type:'start'});assert.equal(started.status,200);assert.equal(started.data.stage,'intro');
+ assert.equal((await players.lauren.request()).data.intro.startsAt,started.data.intro.startsAt);
+ assert.equal((await players.jack.request({type:'choose',game:'quiz'})).status,400);
+ // Advance only the isolated test room's clock; no sleeps or production state changes.
+ async function finishIntro(){const row=await db.prepare('SELECT id,body FROM game_rooms').first();const room=JSON.parse(row.body);room.intro.startsAt=Date.now()-20000;room.intro.endsAt=Date.now()-1;await db.prepare('UPDATE game_rooms SET body=? WHERE id=?').bind(JSON.stringify(room),row.id).run();}
+ await finishIntro();assert.equal((await players.lauren.request()).data.stage,'menu');
  assert.equal((await players.jack.request({type:'choose',game:'quiz'})).status,200);
  assert.equal((await players.jack.request({type:'timer',game:'quiz',index:0})).status,200);
  const answers=await Promise.all(Object.values(players).map(c=>c.request({type:'answer',game:'quiz',index:0,answer:0})));
@@ -40,5 +45,21 @@ try{
  const newHost=await observer.request({type:'join',player:'jack'});assert.equal(newHost.status,200);assert.equal(newHost.data.isHost,true);
  assert.equal((await players.jack.request({type:'reset'})).status,403);
  assert.equal((await observer.request({type:'reset'})).status,200);
- console.log('Integration passed: no sign-in, Jack selection and host transfer, four independent sessions, concurrent joins/answers, persistent refresh, host-only controls, hidden answers, shared scoring, synchronised progression, stale actions and cross-origin protection.');
+ for(const c of [players.richard,players.stu,players.lauren])assert.equal((await c.request({type:'leave'})).status,200);
+ assert.equal((await observer.request({type:'ready',ready:true})).status,200);
+ const solo=await observer.request({type:'start'});assert.equal(solo.data.stage,'intro');assert.deepEqual(solo.data.participants,['jack']);
+ await finishIntro();
+ for(const game of ['quiz','emoji','list','pitch']){
+  assert.equal((await observer.request({type:'choose',game})).status,200);
+  assert.equal((await observer.request()).data.round.performer,'jack');
+  if(game==='quiz'||game==='emoji'){
+   assert.equal((await observer.request({type:'timer',game,index:0})).status,200);
+   assert.equal((await observer.request({type:'answer',game,index:0,answer:game==='quiz'?0:'Home Alone'})).status,200);
+   assert.equal((await observer.request({type:'reveal',game,index:0})).status,200);
+  }else assert.equal((await observer.request({type:'award',game,index:0,points:3})).status,200);
+  assert.equal((await observer.request({type:'next',game,index:0})).status,200);
+  assert.equal((await observer.request()).data.round.performer,'jack');
+  assert.equal((await observer.request({type:'menu'})).status,200);
+ }
+ console.log('Solo and intro integration passed. Integration passed: no sign-in, Jack selection and host transfer, four independent sessions, concurrent joins/answers, persistent refresh, host-only controls, hidden answers, shared scoring, synchronised progression, stale actions and cross-origin protection.');
 }finally{await mf.dispose();}
