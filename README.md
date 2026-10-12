@@ -4,6 +4,8 @@ A shared four-player games centre for Richard, Stu, Jack and Lauren. Jack is the
 
 Live site: https://profilpas-christmas-games-2026.jackmoycetroth.chatgpt.site
 
+GitHub Pages entry: https://highstreetwebco.github.io/Profilpaschristmasgames/ — the root `index.html` redirects to the live game because its shared backend runs on Sites. `.nojekyll` prevents Pages from rendering this README as the website.
+
 Source: https://github.com/Highstreetwebco/Profilpaschristmasgames
 
 ## Player flow
