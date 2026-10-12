@@ -1,0 +1,11 @@
+import {sqliteTable,text,integer} from 'drizzle-orm/sqlite-core';
+
+export const rooms=sqliteTable('game_rooms',{
+ id:text('id').primaryKey(),
+ version:integer('version').notNull().default(0),
+ body:text('body').notNull(),
+});
+export const presence=sqliteTable('game_presence',{
+ id:text('id').primaryKey(),
+ lastSeen:integer('last_seen').notNull(),
+});
