@@ -67,5 +67,5 @@ test('returning to the lobby replays the entrance and preserves scores',()=>{
  assert.equal(r.stage,'intro');assert.equal(r.intro.startsAt,time+1000+INTRO_LEAD_IN);assert.equal(r.ledger[0].points,2);
 });
 test('entrance phases preserve the requested action order',()=>{
- assert.deepEqual([-1,0,1200,3000,3900,5800,6900,8400,10000,12000,13100].map(introPhase),['ready','jump-out','run-in','throw-rope','pull','drop','throw-logo','celebrate','run-back','jump-back','done']);
+ assert.deepEqual([-1,0,1200,5000,5900,7800,8900,10400,12000,16000,17100].map(introPhase),['ready','jump-out','run-in','throw-rope','pull','drop','throw-logo','celebrate','run-back','jump-back','done']);
 });

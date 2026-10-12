@@ -1,7 +1,7 @@
 'use client';
 import {useCallback,useEffect,useRef,useState} from 'react';
 import LaurenIntro from './LaurenIntro';
-import {LOGO_SWAP_AT} from '../lib/intro-timeline.js';
+import BrandLogo from './BrandLogo';
 
 type Player={id:string;name:string;avatar:number;title:string;taken:boolean;ready:boolean;online:boolean;score:number;me:boolean};
 type Game={id:string;name:string;short:string;description:string;icon:string;instructions:string;seconds:number;cards:number;maxPoints:number;complete:boolean;progress:number};
@@ -18,7 +18,7 @@ export default function GamesCentre(){
  const notify=(text:string)=>{setToast(text);if(toastTimer.current)clearTimeout(toastTimer.current);toastTimer.current=setTimeout(()=>setToast(''),4000);};
  const apply=useCallback((data:Room)=>{setRoom(prev=>!prev||data.version>prev.version||(data.version===prev.version&&data.serverTime>=prev.serverTime)?data:prev);setOffset(data.serverTime-Date.now());setLastSuccess(Date.now());setError('');},[]);
  const refresh=useCallback(async()=>{if(busy.current)return;busy.current=true;try{const res=await fetch('/api/room',{cache:'no-store',signal:AbortSignal.timeout(6000)});if(!res.ok){const body=await res.json().catch(()=>null) as {error?:string}|null;throw new Error(body?.error||'The room is reconnecting.');}apply(await res.json() as Room);}catch(e){setError(e instanceof Error?e.message:'Could not connect to the room.');}finally{busy.current=false;}},[apply]);
- useEffect(()=>{for(const src of ['/assets/lauren-intro-sprites.png','/assets/profilpas-correct-logo.png','/assets/profilpas-logo.png']){const img=new Image();img.src=src;}},[]);
+ useEffect(()=>{for(const src of ['/assets/lauren-rig.png','/assets/profilpas-correct-logo.png','/assets/profilpas-logo.png']){const img=new Image();img.src=src;}},[]);
  useEffect(()=>{setNow(Date.now());refresh();const poll=setInterval(refresh,1500),clock=setInterval(()=>setNow(Date.now()),250);const wake=()=>refresh();window.addEventListener('online',wake);document.addEventListener('visibilitychange',wake);return()=>{clearInterval(poll);clearInterval(clock);window.removeEventListener('online',wake);document.removeEventListener('visibilitychange',wake);};},[refresh]);
  useEffect(()=>{setAnswer('');setSelected(null);},[room?.activeGame,room?.round?.index,room?.stage]);
  useEffect(()=>{if(!dialog.current)return;if(modal&&!dialog.current.open)dialog.current.showModal();if(!modal&&dialog.current.open)dialog.current.close();},[modal]);
@@ -33,7 +33,7 @@ export default function GamesCentre(){
  const answering=!!r&&!!r.deadline&&serverNow<r.deadline&&!r.revealed&&r.myAnswer===null;
  const inIntro=room?.stage==='intro';
  const inLobby=!room||room.stage==='lobby'||inIntro;
- const corrected=!!room&&!inLobby||!!room?.intro&&inIntro&&serverNow>=room.intro.startsAt+LOGO_SWAP_AT;
+ const corrected=!!room&&!inLobby;
  const activePlayers=room?.players.filter(p=>room.participants.includes(p.id))||[];
  const locked=pending||!connected||inIntro;
  const scoreOrder=room?[...activePlayers].sort((a,b)=>b.score-a.score):[];
@@ -43,7 +43,7 @@ export default function GamesCentre(){
  const hostNavigation=room?.isHost&&!inLobby;
  return <div className={`game-world ${inIntro?'intro-running':''}`}>
   <div className="snowfield" aria-hidden="true"><i/><i/><i/><i/><i/><i/><i/><i/></div>
-  <header className="game-header" inert={inIntro||undefined}><span className={`brand-frame ${corrected?'correct-brand':''}`}><img className="brand" src={corrected?'/assets/profilpas-correct-logo.png':'/assets/profilpas-logo.png'} alt="Profilpas by Mapei"/></span><div className="room-label"><span className={`signal ${connected?'online':''}`}/>{connected?'CHRISTMAS ROOM • CONNECTED':'CONNECTING TO THE ROOM'}</div><div className="header-buttons"><button className="icon-button" onClick={()=>setModal('help')} aria-label="How to play">?</button><button className="icon-button fullscreen" onClick={fullScreen} aria-label="Toggle fullscreen">⛶</button>{me&&<span className="you-badge"><Avatar avatar={me.avatar}/><span>{me.name}{room?.isHost&&<small>RINGMASTER</small>}</span></span>}</div></header>
+  <header className="game-header" inert={inIntro||undefined}><span className={corrected?'correct-brand':''}><BrandLogo/></span><div className="room-label"><span className={`signal ${connected?'online':''}`}/>{connected?'CHRISTMAS ROOM • CONNECTED':'CONNECTING TO THE ROOM'}</div><div className="header-buttons"><button className="icon-button" onClick={()=>setModal('help')} aria-label="How to play">?</button><button className="icon-button fullscreen" onClick={fullScreen} aria-label="Toggle fullscreen">⛶</button>{me&&<span className="you-badge"><Avatar avatar={me.avatar}/><span>{me.name}{room?.isHost&&<small>RINGMASTER</small>}</span></span>}</div></header>
   {!connected&&room&&<div className="connection-warning" role="status">Connection interrupted. Controls are paused while we reconnect. <button onClick={refresh}>Retry now</button></div>}
   <main className="game-main" inert={inIntro||undefined}>
    {inLobby&&<section className="lobby stage-enter" aria-labelledby="lobby-title">
@@ -66,7 +66,6 @@ export default function GamesCentre(){
      {me&&<button className="text-button muted" disabled={locked} onClick={()=>act('leave')}>Not {me.name}? Change player</button>}
      {room?.isHost&&<div><button className="text-button muted" disabled={locked} onClick={()=>{if(confirm("Reset everyone’s scores and round progress for a fresh game?"))act("reset");}}>Reset session</button></div>}
     </div>
-    <div className="lobby-logo" aria-label="Profilpas logo"><img src="/assets/profilpas-logo.png" alt="Profilpas by Mapei"/></div>
    </section>}
    {room&&!inLobby&&!me&&<section className="spectator-note"><span>🎄</span><h1>The games are under way.</h1><p>Your device hasn’t joined as a player. Ask Jack to return to the lobby so you can choose your name.</p><p>You can follow the shared scoreboard below.</p></section>}
    {room&&room.stage==='menu'&&me&&<section className="game-menu stage-enter"><p className="eyebrow">{activePlayers.length===1?'SOLO TEST · TRY EVERY GAME':'LET THE FESTIVE CHAOS BEGIN'}</p><h1>{room.isHost?'Your show, ': 'Over to '}<em>Jack.</em></h1><p className="subtitle">{room.isHost?activePlayers.length===1?'Choose a game to test. Return to the lobby when the team is ready.':'Choose the next game. Everyone will move with you.':'Your ringmaster is choosing the next game. Stay right here.'}</p><div className="game-cards">{room.games.map((game,i)=><button className={`game-card ${game.complete?'completed':''}`} key={game.id} disabled={!room.isHost||locked||game.complete} onClick={()=>act('choose',{game:game.id})}><div className="game-card-top"><span>ROUND 0{i+1}</span><span>{game.complete?'COMPLETE ✓':`${game.cards} CARDS`}</span></div><span className="game-illustration" aria-hidden="true">{game.icon}</span><h2>{game.name}</h2><p>{game.description}</p><div className="game-card-bottom">{game.complete?'Nicely played':room.isHost?game.progress?'Continue round':'Launch game':'Jack chooses the game'}<span>{game.complete?'✓':'↗'}</span></div></button>)}</div><p className="menu-footnote">Good luck. Have fun. Try to keep the gloating festive.</p></section>}
