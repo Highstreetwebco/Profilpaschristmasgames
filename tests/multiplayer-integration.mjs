@@ -24,22 +24,55 @@ try{
  assert.equal((await players.stu.request({type:'start'})).status,403);
  const started=await players.jack.request({type:'start'});assert.equal(started.status,200);assert.equal(started.data.stage,'intro');
  assert.equal((await players.lauren.request()).data.intro.startsAt,started.data.intro.startsAt);
- assert.equal((await players.jack.request({type:'choose',game:'quiz'})).status,400);
+ assert.equal((await players.jack.request({type:'choose',game:'emoji'})).status,400);
  // Advance only the isolated test room's clock; no sleeps or production state changes.
  async function finishIntro(){const row=await db.prepare('SELECT id,body FROM game_rooms').first();const room=JSON.parse(row.body);room.intro.startsAt=Date.now()-20000;room.intro.endsAt=Date.now()-1;await db.prepare('UPDATE game_rooms SET body=? WHERE id=?').bind(JSON.stringify(room),row.id).run();}
  await finishIntro();assert.equal((await players.lauren.request()).data.stage,'menu');
- assert.equal((await players.jack.request({type:'choose',game:'quiz'})).status,200);
- assert.equal((await players.jack.request({type:'timer',game:'quiz',index:0})).status,200);
- const answers=await Promise.all(Object.values(players).map(c=>c.request({type:'answer',game:'quiz',index:0,answer:0})));
+ assert.equal((await players.jack.request({type:'choose',game:'emoji'})).status,200);
+ assert.equal((await players.jack.request({type:'timer',game:'emoji',index:0})).status,200);
+ const answers=await Promise.all(Object.values(players).map(c=>c.request({type:'answer',game:'emoji',index:0,answer:'Home Alone'})));
  for(const a of answers)assert.equal(a.status,200,JSON.stringify(a.data));
  const before=(await players.lauren.request()).data;assert.equal(before.round.answered.length,4);assert.equal(before.round.answer,null);assert.equal(before.round.answers,null);
- const revealed=await players.jack.request({type:'reveal',game:'quiz',index:0});assert.equal(revealed.status,200);
- for(const c of Object.values(players)){const s=(await c.request()).data;assert.equal(s.round.answer,'Kevin');assert.ok(s.players.every(p=>p.score===1));}
- assert.equal((await players.stu.request({type:'next',game:'quiz',index:0})).status,403);
- assert.equal((await players.jack.request({type:'next',game:'quiz',index:0})).status,200);
+ const revealed=await players.jack.request({type:'reveal',game:'emoji',index:0});assert.equal(revealed.status,200);
+ for(const c of Object.values(players)){const s=(await c.request()).data;assert.equal(s.round.answer,'Home Alone');assert.ok(s.players.every(p=>p.score===1));}
+ assert.equal((await players.stu.request({type:'next',game:'emoji',index:0})).status,403);
+ assert.equal((await players.jack.request({type:'next',game:'emoji',index:0})).status,200);
  assert.equal((await players.richard.request()).data.round.index,1);
- assert.equal((await players.richard.request({type:'answer',game:'quiz',index:0,answer:0})).status,409);
+ assert.equal((await players.richard.request({type:'answer',game:'emoji',index:0,answer:'Home Alone'})).status,409);
  assert.equal((await mf.dispatchFetch('https://game.test/api/room',{method:'POST',headers:{origin:'https://evil.test','content-type':'application/json'},body:JSON.stringify({type:'reset',requestId:crypto.randomUUID()})})).status,403);
+
+ // Pictionary uses the same real API and D1 compare-and-swap as the deployed room.
+ assert.equal((await players.jack.request({type:'menu'})).status,200);
+ const opened=(await players.jack.request({type:'choose',game:'pictionary'})).data;
+ const roundId=opened.round.roundId;
+ const drawing=(type,extra={})=>({type,game:'pictionary',index:0,roundId,...extra});
+ assert.equal(opened.round.total,8);assert.equal(opened.round.secretWord,null);
+ const drawer=(await players.richard.request(drawing('pictionary_start'))).data;
+ const secret=drawer.round.secretWord;assert.ok(secret);assert.equal(drawer.round.deadline-drawer.serverTime<=120000,true);
+ for(const c of [players.jack,players.stu,players.lauren,observer]){const response=(await c.request()).data;assert.equal(response.round.secretWord,null);assert.equal(response.round.answer,null);assert.equal(JSON.stringify(response).includes(secret),false);}
+ const stroke=crypto.randomUUID(),ink=drawing('pictionary_ink',{stroke,colour:'#3280c4',width:6,canvasEpoch:0,points:[[100,100],[200,200]]});
+ assert.equal((await players.jack.request(ink)).status,403);
+ assert.equal((await players.richard.request(ink)).status,200);
+ assert.deepEqual((await players.lauren.request()).data.round.strokes[0].points,ink.points);
+ // Concurrent drawing and wrong guesses must not overwrite each other.
+ const updates=await Promise.all([players.richard.request({...ink,points:[[200,200],[300,200]]}),players.stu.request(drawing('pictionary_guess',{answer:'definitely not it'})),players.jack.request(drawing('pictionary_guess',{answer:'another wrong guess'}))]);
+ for(const result of updates)assert.equal(result.status,200,JSON.stringify(result.data));
+ const persisted=(await players.lauren.request()).data;assert.equal(persisted.round.strokes.length,2);assert.equal(persisted.round.guesses.length,2);
+ // Age wrong guesses only in the isolated fixture so all three players can race without rate limits.
+ const raceRow=await db.prepare('SELECT id,body FROM game_rooms').first();const raceRoom=JSON.parse(raceRow.body);raceRoom.rounds.pictionary.guesses.forEach(g=>g.at-=1000);await db.prepare('UPDATE game_rooms SET body=?,version=version+1 WHERE id=?').bind(JSON.stringify(raceRoom),raceRow.id).run();
+ // Race three correct guesses: exactly one accepted winner and one point, no double scoring.
+ const race=await Promise.all([players.stu,players.jack,players.lauren].map(c=>c.request(drawing('pictionary_guess',{answer:secret}))));
+ assert.equal(race.filter(x=>x.status===200).length,1,JSON.stringify(race));
+ const won=(await players.richard.request()).data;assert.equal(won.round.revealed,true);assert.equal(won.round.answer,secret);assert.equal(won.round.awards.length,1);assert.equal(won.round.awards[0].points,1);
+ assert.equal(won.players.reduce((n,p)=>n+p.score,0),5); // Four earlier emoji points plus the sole winning guess.
+ assert.equal((await players.jack.request(drawing('pictionary_next'))).status,200);
+ assert.equal((await players.lauren.request()).data.round.performer,'stu');
+ assert.equal((await players.richard.request(ink)).status,409);
+ assert.equal((await players.stu.request({type:'pictionary_start',game:'pictionary',index:1,roundId})).status,200);
+ // Expire the isolated test's turn, then verify read-only clients see the answer automatically.
+ const picRow=await db.prepare('SELECT id,body FROM game_rooms').first();const picRoom=JSON.parse(picRow.body);picRoom.rounds.pictionary.deadline=Date.now()-1;await db.prepare('UPDATE game_rooms SET body=? WHERE id=?').bind(JSON.stringify(picRoom),picRow.id).run();
+ const expired=(await players.jack.request()).data;assert.equal(expired.round.outcome,'timeout');assert.equal(expired.round.revealed,true);assert.ok(expired.round.answer);
+ assert.equal((await players.lauren.request({type:'pictionary_guess',game:'pictionary',index:1,roundId,answer:expired.round.answer})).status,400);
  assert.equal((await players.jack.request({type:'lobby'})).status,200);
  assert.equal((await players.jack.request({type:'leave'})).data.isHost,false);
  const newHost=await observer.request({type:'join',player:'jack'});assert.equal(newHost.status,200);assert.equal(newHost.data.isHost,true);
@@ -49,17 +82,28 @@ try{
  assert.equal((await observer.request({type:'ready',ready:true})).status,200);
  const solo=await observer.request({type:'start'});assert.equal(solo.data.stage,'intro');assert.deepEqual(solo.data.participants,['jack']);
  await finishIntro();
- for(const game of ['quiz','emoji','list','pitch']){
+
+ const soloPic=(await observer.request({type:'choose',game:'pictionary'})).data;
+ assert.equal(soloPic.round.total,2);assert.equal(soloPic.round.solo,true);
+ for(let index=0;index<2;index++){
+  const base={game:'pictionary',index,roundId:soloPic.round.roundId};
+  const started=(await observer.request({type:'pictionary_start',...base}));assert.equal(started.status,200);
+  assert.equal((await observer.request({type:'pictionary_guess',...base,answer:started.data.round.secretWord})).status,200);
+  assert.equal((await observer.request({type:'pictionary_next',...base})).status,200);
+ }
+ const practice=(await observer.request()).data;assert.equal(practice.stage,'round_end');assert.equal(practice.players.find(p=>p.id==='jack').score,0);
+ assert.equal((await observer.request({type:'menu'})).status,200);
+ for(const game of ['emoji','list','pitch']){
   assert.equal((await observer.request({type:'choose',game})).status,200);
   assert.equal((await observer.request()).data.round.performer,'jack');
-  if(game==='quiz'||game==='emoji'){
+  if(game==='emoji'){
    assert.equal((await observer.request({type:'timer',game,index:0})).status,200);
-   assert.equal((await observer.request({type:'answer',game,index:0,answer:game==='quiz'?0:'Home Alone'})).status,200);
+   assert.equal((await observer.request({type:'answer',game,index:0,answer:'Home Alone'})).status,200);
    assert.equal((await observer.request({type:'reveal',game,index:0})).status,200);
   }else assert.equal((await observer.request({type:'award',game,index:0,points:3})).status,200);
   assert.equal((await observer.request({type:'next',game,index:0})).status,200);
   assert.equal((await observer.request()).data.round.performer,'jack');
   assert.equal((await observer.request({type:'menu'})).status,200);
  }
- console.log('Solo and intro integration passed. Integration passed: no sign-in, Jack selection and host transfer, four independent sessions, concurrent joins/answers, persistent refresh, host-only controls, hidden answers, shared scoring, synchronised progression, stale actions and cross-origin protection.');
+ console.log('Pictionary integration passed: private prompt, shared streamed drawing, concurrent guesses, one winner, timeout, rotation, solo practice. Solo and intro integration passed. Integration passed: no sign-in, Jack selection and host transfer, four independent sessions, concurrent joins/answers, persistent refresh, host-only controls, hidden answers, shared scoring, synchronised progression, stale actions and cross-origin protection.');
 }finally{await mf.dispose();}

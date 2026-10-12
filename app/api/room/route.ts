@@ -25,7 +25,7 @@ export async function POST(req:Request){let cookie;try{
  const origin=req.headers.get('origin');if(origin&&origin!==new URL(req.url).origin)throw new RoomError('This action must come from the game itself.',403);
  if(req.headers.get('sec-fetch-site')==='cross-site')throw new RoomError('Cross-site actions are not allowed.',403);
  if(!req.headers.get('content-type')?.startsWith('application/json'))throw new RoomError('Use a JSON game action.',415);
- const raw=await req.text();if(raw.length>2048)throw new RoomError('That request is too large.',413);let command;
+ const raw=await req.text();if(raw.length>8192)throw new RoomError('That request is too large.',413);let command;
  try{command=JSON.parse(raw);}catch{throw new RoomError('Invalid game action.');}
  if(!command||typeof command.type!=='string'||typeof command.requestId!=='string'||!/^[a-zA-Z0-9-]{16,80}$/.test(command.requestId))throw new RoomError('A valid action ID is required.');
  const who=await identity(req);cookie=who.cookie;const actor=who.actor;
