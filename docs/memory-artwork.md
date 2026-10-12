@@ -2,7 +2,7 @@
 
 The four faces reuse the approved `jack-ringmaster.webp`, `stu-city-guinness.webp`, `lauren-vape.webp` and `richard-bmw.webp` portraits. No new likenesses were generated.
 
-The new eight-object sprite atlas was created with the built-in image-generation tool on 12 October 2026. The original is `generated_images/exec-49204e9e-bc4b-4df5-8f8b-c3f84ad906c1.png`. Its project delivery asset is `public/assets/memory-objects.webp`, 1536×1024 pixels, with genuine alpha transparency preserved during WebP compression. The app uses SVG view boxes for the eight 384×512 cells; the atlas is never stretched within a card. `lib/memory-pictures.js` contains the cell names and positions.
+The new eight-object sprite atlas was created with the built-in image-generation tool on 12 October 2026. The original is `generated_images/exec-49204e9e-bc4b-4df5-8f8b-c3f84ad906c1.png`. Its project delivery asset is `public/assets/memory-objects.webp`, 1536×1024 pixels, with genuine alpha transparency preserved during WebP compression. The app explicitly clips each of the eight 384×512 cells with a unique SVG clip path. Merely changing the view box can reveal neighbouring sprites in a wide card; the clip rectangle confines rendering to one icon at every card aspect ratio. `lib/memory-pictures.js` contains the cell names and positions.
 
 ## Exact generation prompt
 

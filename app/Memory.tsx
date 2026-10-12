@@ -1,5 +1,5 @@
 'use client';
-import {useEffect,useRef,useState} from 'react';
+import {useEffect,useId,useRef,useState} from 'react';
 import {memoryPictures} from '../lib/memory-pictures.js';
 type Player={id:string;name:string;avatar:number;online:boolean};
 type MemoryCard={position:number;face:string|null;matchedBy:string|null;selected:boolean};
@@ -7,8 +7,8 @@ export type MemoryRound={game:'memory';roundId:string;index:number;total:number;
 type Props={round:MemoryRound;players:Player[];me:string;isHost:boolean;connected:boolean;serverNow:number;send:(command:Record<string,unknown>)=>Promise<unknown>};
 const catalogue=Object.fromEntries(memoryPictures.map(p=>[p.id,p]));
 function Picture({id}:{id:string}){
- const p=catalogue[id];if(!p)return null;
- return <><span className="memory-picture">{'src' in p?<img src={p.src} alt="" draggable={false}/>:<svg viewBox={`${(p.cell!%4)*384} ${Math.floor(p.cell!/4)*512} 384 512`} aria-hidden="true"><image href="/assets/memory-objects.webp" width="1536" height="1024" preserveAspectRatio="none"/></svg>}</span><span className="memory-picture-label">{p.name}</span></>;
+ const clip=useId(),p=catalogue[id];if(!p)return null;
+ return <><span className="memory-picture">{'src' in p?<img src={p.src} alt="" draggable={false}/>:<svg viewBox="0 0 384 512" aria-hidden="true"><defs><clipPath id={clip} clipPathUnits="userSpaceOnUse"><rect x="0" y="0" width="384" height="512"/></clipPath></defs><g clipPath={`url(#${clip})`}><image href="/assets/memory-objects.webp" x={-(p.cell!%4)*384} y={-Math.floor(p.cell!/4)*512} width="1536" height="1024" preserveAspectRatio="none"/></g></svg>}</span><span className="memory-picture-label">{p.name}</span></>;
 }
 function Card({card,face,disabled,owner,onClick}:{card:MemoryCard;face:string|null;disabled:boolean;owner?:Player;onClick:()=>void}){
  const [painted,setPainted]=useState(face);
