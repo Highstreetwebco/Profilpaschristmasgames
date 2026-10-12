@@ -90,6 +90,42 @@ try{
  const picRow=await db.prepare('SELECT id,body FROM game_rooms').first();const picRoom=JSON.parse(picRow.body);picRoom.rounds.pictionary.deadline=Date.now()-1;await db.prepare('UPDATE game_rooms SET body=? WHERE id=?').bind(JSON.stringify(picRoom),picRow.id).run();
  const expired=(await players.jack.request()).data;assert.equal(expired.round.outcome,'timeout');assert.equal(expired.round.revealed,true);assert.ok(expired.round.answer);
  assert.equal((await players.lauren.request({type:'pictionary_guess',game:'pictionary',index:1,roundId,answer:expired.round.answer})).status,400);
+
+ // Memory Match: shared board, server-owned turns and exactly-once pair awards.
+ async function moveMemoryClock(update){const row=await db.prepare('SELECT id,body FROM game_rooms').first();const room=JSON.parse(row.body);update(room.rounds.memory);await db.prepare('UPDATE game_rooms SET body=?,version=version+1 WHERE id=?').bind(JSON.stringify(room),row.id).run();}
+ async function memoryState(c=players.jack){return (await c.request()).data.round;}
+ function memoryCommand(state,type,extra={}){return{type,game:'memory',roundId:state.roundId,turn:state.turn,...extra};}
+ assert.equal((await players.jack.request({type:'menu'})).status,200);
+ const memOpen=(await players.jack.request({type:'choose',game:'memory'})).data.round;
+ assert.equal(memOpen.cards.length,24);assert.ok(memOpen.cards.every(c=>c.face===null));
+ assert.equal((await players.stu.request(memoryCommand(memOpen,'memory_start'))).status,403);
+ assert.equal((await players.jack.request(memoryCommand(memOpen,'memory_start'))).status,200);
+ await moveMemoryClock(r=>{r.previewAt=Date.now()-100;r.deadline=Date.now()+8000;});
+ const peek=await memoryState();assert.equal(peek.cards.filter(c=>c.face).length,24);const pairs=Object.values(Object.groupBy(peek.cards,c=>c.face)).map(v=>v.map(c=>c.position));assert.equal(pairs.length,12);
+ for(const c of Object.values(players))assert.deepEqual((await memoryState(c)).cards.map(p=>p.face),peek.cards.map(p=>p.face));
+ await moveMemoryClock(r=>r.deadline=Date.now()-1);
+ let mem=await memoryState();assert.equal(mem.phase,'playing');assert.ok(mem.cards.every(c=>c.face===null));assert.ok((await memoryState(observer)).cards.every(c=>c.face===null));
+ const picker=mem.performer,wrong=Object.keys(players).find(id=>id!==picker),[first,second]=pairs[0];
+ assert.equal((await players[wrong].request(memoryCommand(mem,'memory_flip',{position:first}))).status,403);
+ assert.equal((await players[picker].request(memoryCommand(mem,'memory_flip',{position:first}))).status,200);
+ const doubleFlips=await Promise.all([1,2,3].map(()=>players[picker].request(memoryCommand(mem,'memory_flip',{position:second}))));
+ assert.equal(doubleFlips.filter(r=>r.status===200).length,1);mem=await memoryState();assert.equal(mem.found,1);assert.equal(mem.pairCounts[picker],1);assert.equal(mem.cards[first].matchedBy,picker);
+ assert.equal((await players.jack.request(memoryCommand(mem,'memory_pause'))).status,200);
+ assert.equal((await players.jack.request({type:'menu'})).status,200);
+ assert.equal((await players.jack.request({type:'choose',game:'memory'})).status,200);mem=await memoryState();assert.equal(mem.paused,true);assert.equal(mem.found,1);
+ assert.equal((await players.jack.request(memoryCommand(mem,'memory_pause'))).status,200);
+ await moveMemoryClock(r=>r.deadline=Date.now()-1);mem=await memoryState();assert.equal(mem.performer,picker);
+ const staleTurn=mem.turn;
+ assert.equal((await players[picker].request(memoryCommand(mem,'memory_flip',{position:pairs[1][0]}))).status,200);
+ assert.equal((await players[picker].request(memoryCommand(mem,'memory_flip',{position:pairs[2][0]}))).status,200);
+ assert.equal((await memoryState()).phase,'reveal');
+ await moveMemoryClock(r=>r.deadline=Date.now()-1);mem=await memoryState();assert.notEqual(mem.performer,picker);assert.equal(mem.cards.filter(c=>c.face).length,2);
+ assert.equal((await players[picker].request(memoryCommand(mem,'memory_flip',{position:pairs[1][0],turn:staleTurn}))).status,409);
+ assert.equal((await players.stu.request(memoryCommand(mem,'memory_skip'))).status,403);
+ assert.equal((await players.jack.request(memoryCommand(mem,'memory_skip'))).status,200);
+ for(const pair of pairs.slice(1)){mem=await memoryState();const c=players[mem.performer];for(const position of pair)assert.equal((await c.request(memoryCommand(mem,'memory_flip',{position}))).status,200);await moveMemoryClock(r=>r.deadline=Date.now()-1);}
+ mem=await memoryState();assert.equal(mem.complete,true);assert.equal(mem.found,12);assert.equal(mem.cards.filter(c=>c.face).length,24);assert.equal((await players.jack.request()).data.players.reduce((n,p)=>n+p.score,0),16);
+ assert.equal((await players.jack.request(memoryCommand(mem,'memory_finish'))).data.stage,'round_end');
  assert.equal((await players.jack.request({type:'lobby'})).status,200);
  assert.equal((await players.jack.request({type:'leave'})).data.isHost,false);
  const newHost=await observer.request({type:'join',player:'jack'});assert.equal(newHost.status,200);assert.equal(newHost.data.isHost,true);
@@ -119,7 +155,17 @@ try{
  assert.equal((await observer.request({type:'hangman_next',...soloWord})).status,200);
  const hangPractice=(await observer.request()).data;assert.equal(hangPractice.stage,'round_end');assert.equal(hangPractice.players.find(p=>p.id==='jack').score,0);
  assert.equal((await observer.request({type:'menu'})).status,200);
- for(const game of ['list','pitch']){
+
+ const soloMemory=(await observer.request({type:'choose',game:'memory'})).data.round;
+ assert.equal(soloMemory.solo,true);assert.equal((await observer.request(memoryCommand(soloMemory,'memory_start'))).status,200);
+ await moveMemoryClock(r=>{r.previewAt=Date.now()-100;r.deadline=Date.now()+8000;});
+ const soloPairs=Object.values(Object.groupBy((await memoryState(observer)).cards,c=>c.face)).map(v=>v.map(c=>c.position));
+ await moveMemoryClock(r=>r.deadline=Date.now()-1);
+ for(const pair of soloPairs){const state=await memoryState(observer);for(const position of pair)assert.equal((await observer.request(memoryCommand(state,'memory_flip',{position}))).status,200);await moveMemoryClock(r=>r.deadline=Date.now()-1);}
+ const soloDone=await memoryState(observer);assert.equal(soloDone.found,12);assert.equal(soloDone.complete,true);assert.equal((await observer.request()).data.players.find(p=>p.id==='jack').score,0);
+ assert.equal((await observer.request(memoryCommand(soloDone,'memory_finish'))).status,200);
+ assert.equal((await observer.request({type:'menu'})).status,200);
+ for(const game of ['pitch']){
   assert.equal((await observer.request({type:'choose',game})).status,200);
   assert.equal((await observer.request()).data.round.performer,'jack');
   assert.equal((await observer.request({type:'award',game,index:0,points:3})).status,200);
@@ -127,5 +173,5 @@ try{
   assert.equal((await observer.request()).data.round.performer,'jack');
   assert.equal((await observer.request({type:'menu'})).status,200);
  }
- console.log('Hangman integration passed: private word, concurrent shared letters, duplicate life protection, cooperative scoring, setter exclusion, one rotation and solo play. Pictionary integration passed: private prompt, shared streamed drawing, concurrent guesses, one winner, timeout, rotation, solo practice. Solo and intro integration passed. Integration passed: no sign-in, Jack selection and host transfer, four independent sessions, concurrent joins/answers, persistent refresh, host-only controls, hidden answers, shared scoring, synchronised progression, stale actions and cross-origin protection.');
+ console.log('Memory integration passed: 24 shared cards, timed concealment, turn enforcement, racing clicks, one award per pair, misses, pause/resume, all pairs, solo no-score. Hangman integration passed: private word, concurrent shared letters, duplicate life protection, cooperative scoring, setter exclusion, one rotation and solo play. Pictionary integration passed: private prompt, shared streamed drawing, concurrent guesses, one winner, timeout, rotation, solo practice. Solo and intro integration passed. Integration passed: no sign-in, Jack selection and host transfer, four independent sessions, concurrent joins/answers, persistent refresh, host-only controls, hidden answers, shared scoring, synchronised progression, stale actions and cross-origin protection.');
 }finally{await mf.dispose();}

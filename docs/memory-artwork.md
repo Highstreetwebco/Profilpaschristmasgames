@@ -1,0 +1,13 @@
+# Memory Match picture cards
+
+The four faces reuse the approved `jack-ringmaster.webp`, `stu-city-guinness.webp`, `lauren-vape.webp` and `richard-bmw.webp` portraits. No new likenesses were generated.
+
+The new eight-object sprite atlas was created with the built-in image-generation tool on 12 October 2026. The original is `generated_images/exec-49204e9e-bc4b-4df5-8f8b-c3f84ad906c1.png`. Its project delivery asset is `public/assets/memory-objects.webp`, 1536×1024 pixels, with genuine alpha transparency preserved during WebP compression. The app uses SVG view boxes for the eight 384×512 cells; the atlas is never stretched within a card. `lib/memory-pictures.js` contains the cell names and positions.
+
+## Exact generation prompt
+
+Use case: stylized-concept. Asset type: ONE sprite-atlas image for a Christmas workplace memory matching game. Create a single precisely arranged 4-column by 2-row sprite atlas, landscape 1536 x 1024. Eight equal invisible rectangular cells, each 384 x 512, no visible dividers. Exactly one clearly distinct toy-like object per cell, all centred within their own cell with generous transparent margins, nothing crosses cell boundaries. TOP ROW left to right: (1) a black stout pint glass with thick creamy foam, no writing; (2) a classic black and white football; (3) a shiny silver triangular tiling trowel with a bright orange handle; (4) a stack of three colourful ceramic square tiles, blue mint and coral. BOTTOM ROW left to right: (5) a chunky gold L-shaped tile-edge trim profile, upright small 3D product miniature; (6) a wrapped red Christmas gift with a gold ribbon and bow; (7) a green Christmas tree with red baubles and a gold star; (8) a red Santa hat with white fur and pompom. Premium playful 3D clay/cartoon style, sculpted rounded surfaces, detailed material texture, gentle studio lighting, strong silhouettes readable at tiny card size. All eight objects similarly sized within cells. Real alpha transparency everywhere outside the objects, no coloured background, no floor, no checkerboard, no extra objects, no people, no labels, no numbers, no text, no watermarks. This is one game spritesheet asset, not a mockup of a board or cards.
+
+## Verification
+
+TypeScript, game-engine tests and an isolated API/D1 multiplayer run cover the board, privacy after preview, turn enforcement, duplicate/racing flips, scoring, misses, pause/resume, completion and solo practice. The source atlas alpha and delivery dimensions were inspected. Native contact-sheet inspection checks the 12 pictures at card size; it is not browser layout verification. Browser interaction and responsive visual QA were unavailable in this environment.
