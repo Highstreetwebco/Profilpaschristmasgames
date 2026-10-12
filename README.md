@@ -43,6 +43,6 @@ Browser visual QA was unavailable in the build environment. Core state-machine a
 Official Profilpas by Mapei logo, downloaded from the official Profilpas website on 12 October 2026:
 https://cdnmedia.mapei.com/images/profilpaslibraries/logo/logo_profilpas-mapeib96bb4e2-2abe-4a13-9960-b38581f8e3b7.png?sfvrsn=c06a6088_6
 
-The two festive WebP images in `public/assets` were generated with the built-in image generation tool: a clay elf party around a silver-profile Christmas tree, and a 3-by-2 character portrait sheet. The four current portraits are festive stand-ins, not likenesses of the team. Personal caricatures still require reference photos.
+The two festive WebP images in `public/assets` were generated with the built-in image generation tool: a clay elf party around a silver-profile Christmas tree, and a 3-by-2 character portrait sheet. Jack’s approved cartoon ringmaster portrait is `public/assets/jack-ringmaster.webp`, generated from his supplied photos with the cigarette and tile-trim baton. It appears in the lobby, player badge, scoreboard and podium. The other three portraits remain festive stand-ins pending their reference photos.
 
 Fonts: DM Sans and Playfair Display, with system fallbacks.
