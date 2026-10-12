@@ -1,4 +1,4 @@
-# Punch and hangman puppets
+# Punch and retaliation puppets
 
 Generated with the built-in image-generation tool on 12 October 2026. Each of the four approved full-body atlases was used as the matching character's identity reference; the hangman used Jack's atlas for rendering style only. Final transparent delivery assets are `public/assets/jack-punch-rig.webp`, `public/assets/stu-punch-rig.webp`, `public/assets/lauren-punch-rig.webp`, `public/assets/richard-punch-rig.webp` and `public/assets/hangman-punch-rig.webp`. PNG originals remain at the tool's generation paths. WebP delivery compression retains alpha.
 
@@ -24,7 +24,9 @@ Pose required for skeletal animation: three-quarter front view facing slightly t
 Use case: identity-preserve. Make ONE full-body game animation puppet on a genuinely transparent 1024x1536 canvas. The reference image contains awake/asleep versions of ONE person; create ONLY ONE awake version of that same person, identical face, hair, hat, clothes, clay/cartoon 3D style, boots. This is a Christmas slapstick game. Full figure centred with generous transparent margins, no backdrop, circle, text, floor or other people.
 Pose required for skeletal animation: three-quarter front view facing slightly to the RIGHT. Feet planted apart. SCREEN-RIGHT ARM extends DIAGONALLY DOWN AND OUT from shoulder, straight with gentle elbow bend; it must be separated from torso by a large clear transparent gap. SCREEN-RIGHT HAND wears one big RED BOXING GLOVE; glove centre near (850,850). Screen-right shoulder near (620,540), elbow (735,700). Other arm held close, its hand near chest. Keep head facing viewer enough to recognise identity. Hat top near y100, boots bottom near y1420. Cheerful mischievous smile. Do not depict a punch hitting anybody or any injuries. Only this rigging pose. Preserve short brown hair/clean shaven face/red Santa hat/redfurtrim jacket/pale blue shirt/charcoal trousers/redboots. Small BMW giftbox tucked under SCREEN-LEFT arm.
 
-## hangman
+## Retired hangman artwork
+
+The masked hangman asset is no longer used. Retaliation is performed by the punched player’s own rig, and the fifth authenticated puncher becomes the rope occupant. The original generation prompt is retained below for provenance.
 
 Use case: stylized-concept. ONE full-body cartoon hangman / theatrical executioner for a cheeky Christmas game. Use attached elf artwork only as 3D clay style reference, not identity. New anonymous stocky adult man wearing charcoal-purple medieval hood with two large friendly eyes showing, purple tunic, gold belt buckle, brown gloves and boots, short red cape with festive fur edge. Comically stern eyebrow shape, no weapon, no skeleton, no injuries. Exactly one character standing front three-quarter facing RIGHT. Screen-right arm extends diagonally down and OUT, isolated from torso by transparent gap, shoulder near (620,540), elbow(735,700), open gloved hand near(850,850), ready for skeletal animation. Other hand close to belt. Hat top near y100, boots at y1420. Full figure entirely visible with generous margins on 1024x1536 genuine alpha canvas. No text, backdrop, floor, gallows, rope or extra character. Premium polished detailed 3D clay artwork matching reference.
 

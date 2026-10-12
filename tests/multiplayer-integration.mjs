@@ -46,8 +46,9 @@ try{
  taps.forEach(r=>assert.equal(r.status,200,JSON.stringify(r.data)));
  const punched=(await players.stu.request()).data;assert.equal(punched.round.elfReaction.hits.length,3);assert.deepEqual(punched.round.elfReaction.hits.map(h=>h.actor.id).sort(),['lauren','richard','stu']);assert.equal(punched.round.mistakes,2);assert.equal(punched.round.maskedWord,'TIL_ T_I_');assert.equal(punched.round.secretWord,null);assert.deepEqual(punched.players.map(p=>p.score),[0,0,0,0]);
  assert.equal((await observer.request(hang('hangman_bonk',{direction:1}))).status,400);
- const fifth=crypto.randomUUID();for(const requestId of [crypto.randomUUID(),fifth,fifth])assert.equal((await players.richard.request(hang('hangman_bonk',{direction:1,requestId}))).status,200);
- const nap=(await players.stu.request()).data.round.elfReaction;assert.equal(nap.hits.length,5);assert.ok(nap.gagUntil>Date.now());
+ const fifth=crypto.randomUUID();for(const requestId of [crypto.randomUUID(),fifth,fifth])assert.equal((await players.stu.request(hang('hangman_bonk',{direction:1,requestId,actor:{id:'jack',avatar:0,name:'Jack'}}))).status,200);
+ const nap=(await players.stu.request()).data.round.elfReaction;assert.equal(nap.hits.length,5);assert.ok(nap.gagUntil>Date.now());assert.equal(nap.culprit.id,'stu');assert.equal(nap.culprit.avatar,1);assert.equal(nap.gagUntil-nap.gagAt,9000);
+ assert.equal((await players.lauren.request(hang('hangman_bonk',{direction:1}))).status,200);const frozen=(await players.jack.request()).data;assert.equal(frozen.round.elfReaction.culprit.id,'stu');assert.equal(frozen.round.elfReaction.gagUntil,nap.gagUntil);assert.equal(frozen.round.mistakes,2);assert.equal(frozen.round.secretWord,null);
  const solved=await Promise.all([players.stu,players.jack,players.lauren].map(c=>c.request(hang('hangman_solve',{answer:'TILE TRIM'}))));
  assert.equal(solved.filter(r=>r.status===200).length,1);
  for(const c of Object.values(players)){const response=(await c.request()).data;assert.equal(response.round.outcome,'saved');assert.deepEqual(response.players.map(p=>p.score),[0,1,1,1]);assert.equal(response.round.awards.length,3);}
