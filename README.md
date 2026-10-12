@@ -37,7 +37,7 @@ GitHub Pages was not enabled at creation. The working private deployment uses Si
 The Profilpas by Mapei logo is the original transparent logo from the official Profilpas website, downloaded 12 October 2026:
 https://cdnmedia.mapei.com/images/profilpaslibraries/logo/logo_profilpas-mapeib96bb4e2-2abe-4a13-9960-b38581f8e3b7.png?sfvrsn=c06a6088_6
 
-`dist/assets/christmas-workshop.png` and `dist/assets/festive-avatars.png` were created using the built-in image generation tool. Briefs: a tactile clay Christmas party with elves, a gold trophy, a silver-profile Christmas tree and presents against forest green; and six coordinated festive character portraits in an equal 3-by-2 grid for the avatar picker. The app crops the sheet in CSS, retaining the original asset.
+`dist/assets/christmas-workshop.webp` and `dist/assets/festive-avatars.webp` were created using the built-in image generation tool. Briefs: a tactile clay Christmas party with elves, a gold trophy, a silver-profile Christmas tree and presents against forest green; and six coordinated festive character portraits in an equal 3-by-2 grid for the avatar picker. The app crops the sheet in CSS, retaining the original asset.
 
 Fonts: DM Sans and Playfair Display from Google Fonts, with Arial/Georgia fallbacks.
 

@@ -1,0 +1,1 @@
+{"name":"profilpas-christmas-games-2026","version":"1.0.0","private":true,"type":"module","scripts":{"check":"node --check dist/app.js && node --test tests/*.test.js"}}

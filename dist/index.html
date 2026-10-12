@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#133e35">
+  <meta name="description" content="A little festive spirit. A lot of friendly competition. Welcome to the Profilpas 2026 Christmas Games.">
+  <title>Profilpas 2026 Christmas Games</title>
+  <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="#home" aria-label="Profilpas Christmas Games home"><img src="./assets/profilpas-logo.png" alt="Profilpas by Mapei"></a>
+    <nav aria-label="Main navigation"><a href="#games" class="nav-link">The games</a><a href="#team" class="nav-link">The festive line-up</a><a href="#leaderboard" class="nav-link">Leaderboard</a></nav>
+    <button class="button button-light small" id="host-guide"><span aria-hidden="true">✦</span> Host guide</button>
+  </header>
+  <main id="main">
+    <section class="hero" id="home" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="tiny-star">✦</span> THE END-OF-YEAR GET-TOGETHER</p>
+        <h1 id="hero-title"><span>Profilpas 2026</span>Christmas<br><em>Games.</em><span class="title-star" aria-hidden="true">✧</span></h1>
+        <p class="hero-description">Excellent profiles. Questionable elf behaviour.<br>A little festive spirit. A lot of friendly competition.</p>
+        <div class="hero-actions"><a class="button button-gold" href="#games">Let the games begin <span aria-hidden="true">↗</span></a><button class="button button-ghost" id="hero-add">Meet your inner elf <span aria-hidden="true">→</span></button></div>
+        <div class="hero-foot"><div class="avatar-stack" aria-hidden="true"><i class="avatar face-0"></i><i class="avatar face-2"></i><i class="avatar face-5"></i></div><p>One team. Four games.<br><strong>Unlimited bragging rights.</strong></p></div>
+      </div>
+      <div class="hero-art"><img src="./assets/christmas-workshop.webp" alt="Three mischievous Christmas elves celebrating beside a tree made from silver profiles" fetchpriority="high"><div class="art-stamp"><span>THE PROFILPAS</span><strong>Festive<br>finish.</strong><span>CHRISTMAS • 2026</span></div></div>
+    </section>
+    <div class="ribbon" aria-hidden="true"><span>LESS SPREADSHEETS</span><b>✦</b><span>MORE CHRISTMAS SPIRIT</span><b>✦</b><span>MAY THE BEST ELF WIN</span><b>✦</b><span>PROFILPAS 2026</span><b>✦</b></div>
+    <div class="content-wrap">
+      <section id="games" class="section" aria-labelledby="games-title">
+        <div class="section-heading"><div><p class="eyebrow green">01 / THE MAIN EVENT</p><h2 id="games-title">Serious about <em>having fun.</em></h2></div><p>Pick a round. Share your screen.<br>Let the friendly rivalry begin.</p></div>
+        <div class="games-grid" id="games-grid"></div>
+        <div class="host-note"><span aria-hidden="true">◉</span><p><strong>Made for your Teams get-together.</strong> One host runs the games and awards points. Everyone else brings their best answers.</p><button class="text-button" id="how-to-play">How to play <span aria-hidden="true">↗</span></button></div>
+      </section>
+      <section class="section team-section" id="team" aria-labelledby="team-title">
+        <div class="section-heading"><div><p class="eyebrow green">02 / THE FESTIVE LINE-UP</p><h2 id="team-title">Same team. <em>More elf.</em></h2></div><button class="button button-green" id="add-player">+ Add a player or team</button></div>
+        <p class="section-intro">Give everyone a festive alter ego. Pick a character, add a name and let the office legends begin.</p>
+        <div id="players-grid" class="players-grid"></div>
+        <p class="local-note">Your line-up and scores are saved in this browser. Use the same device to host, and download a backup before the meeting.</p>
+      </section>
+      <section class="section scoreboard-section" id="leaderboard" aria-labelledby="board-title">
+        <div class="scoreboard-copy"><p class="eyebrow green">03 / BRAGGING RIGHTS</p><h2 id="board-title">All I want for<br>Christmas is <em>first place.</em></h2><p>The scores are friendly.<br>The celebrations are completely over the top.</p><div class="score-tools"><button class="button button-outline small" id="manual-score">Adjust scores</button><button class="text-button" id="undo-score">↶ Undo last score</button></div><div class="mini-tree" aria-hidden="true">✧<br>▴<br>▲<br>▲<br>┃</div></div>
+        <div class="scoreboard"><div class="board-top"><span>THE NICE LIST</span><span class="status-dot">Host scoreboard</span></div><ol id="score-list"></ol><div id="score-empty" class="score-empty"><span aria-hidden="true">♔</span><h3>The throne is still empty.</h3><p>Add your players, play a round<br>and crown your Christmas champion.</p><button class="text-button" id="board-add">Build the line-up →</button></div><div class="board-bottom"><span id="points-total">0 points awarded</span><button class="text-button" id="show-winner">Celebrate the winner ↗</button></div></div>
+      </section>
+      <section class="closing"><span aria-hidden="true">✦</span><p>Thanks for a brilliant year, team.<br><strong>Now go and earn that mince pie.</strong></p><span aria-hidden="true">✦</span></section>
+    </div>
+  </main>
+  <footer><div><img src="./assets/profilpas-logo.png" alt="Profilpas by Mapei"><span>2026 CHRISTMAS GAMES<br><small>Made for the team, with festive spirit.</small></span></div><div class="footer-actions"><button id="export-data">Download backup</button><button id="import-data">Restore backup</button><button id="reset-scores">Reset scores</button></div></footer>
+  <input type="file" id="backup-file" accept="application/json,.json" hidden>
+  <dialog id="main-dialog" aria-labelledby="dialog-title"><button class="close-dialog" aria-label="Close dialog" id="close-dialog">×</button><div id="dialog-content"></div></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div><div id="confetti" aria-hidden="true"></div>
+</body>
+</html>
