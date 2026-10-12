@@ -91,10 +91,12 @@ try{
  const expired=(await players.jack.request()).data;assert.equal(expired.round.outcome,'timeout');assert.equal(expired.round.revealed,true);assert.ok(expired.round.answer);
  assert.equal((await players.lauren.request({type:'pictionary_guess',game:'pictionary',index:1,roundId,answer:expired.round.answer})).status,400);
 
- // Memory Match: shared board, server-owned turns and exactly-once pair awards.
+ // Memory Match: same layout, independent boards, fewest clicks and atomic ranking awards.
  async function moveMemoryClock(update){const row=await db.prepare('SELECT id,body FROM game_rooms').first();const room=JSON.parse(row.body);update(room.rounds.memory);await db.prepare('UPDATE game_rooms SET body=?,version=version+1 WHERE id=?').bind(JSON.stringify(room),row.id).run();}
  async function memoryState(c=players.jack){return (await c.request()).data.round;}
  function memoryCommand(state,type,extra={}){return{type,game:'memory',roundId:state.roundId,turn:state.turn,...extra};}
+ async function memoryFlip(c,position){const state=await memoryState(c);const result=await c.request(memoryCommand(state,'memory_flip',{position}));assert.equal(result.status,200,JSON.stringify(result.data));return result;}
+ async function finishMemoryReveal(id){await moveMemoryClock(r=>{r.boards[id].deadline=Date.now()-1;});}
  assert.equal((await players.jack.request({type:'menu'})).status,200);
  const memOpen=(await players.jack.request({type:'choose',game:'memory'})).data.round;
  assert.equal(memOpen.cards.length,24);assert.ok(memOpen.cards.every(c=>c.face===null));
@@ -103,28 +105,40 @@ try{
  await moveMemoryClock(r=>{r.previewAt=Date.now()-100;r.deadline=Date.now()+8000;});
  const peek=await memoryState();assert.equal(peek.cards.filter(c=>c.face).length,24);const pairs=Object.values(Object.groupBy(peek.cards,c=>c.face)).map(v=>v.map(c=>c.position));assert.equal(pairs.length,12);
  for(const c of Object.values(players))assert.deepEqual((await memoryState(c)).cards.map(p=>p.face),peek.cards.map(p=>p.face));
+ assert.ok((await memoryState(observer)).cards.every(c=>!c.face));
  await moveMemoryClock(r=>r.deadline=Date.now()-1);
- let mem=await memoryState();assert.equal(mem.phase,'playing');assert.ok(mem.cards.every(c=>c.face===null));assert.ok((await memoryState(observer)).cards.every(c=>c.face===null));
- const picker=mem.performer,wrong=Object.keys(players).find(id=>id!==picker),[first,second]=pairs[0];
- assert.equal((await players[wrong].request(memoryCommand(mem,'memory_flip',{position:first}))).status,403);
- assert.equal((await players[picker].request(memoryCommand(mem,'memory_flip',{position:first}))).status,200);
- const doubleFlips=await Promise.all([1,2,3].map(()=>players[picker].request(memoryCommand(mem,'memory_flip',{position:second}))));
- assert.equal(doubleFlips.filter(r=>r.status===200).length,1);mem=await memoryState();assert.equal(mem.found,1);assert.equal(mem.pairCounts[picker],1);assert.equal(mem.cards[first].matchedBy,picker);
+ let mem=await memoryState();assert.equal(mem.phase,'playing');assert.ok(mem.cards.every(c=>c.face===null));
+ assert.equal((await observer.request(memoryCommand(mem,'memory_flip',{position:0}))).status,400);
+ const [first,second]=pairs[0];
+ await memoryFlip(players.jack,first);
+ assert.ok((await memoryState(players.stu)).cards.every(c=>!c.face&&!c.selected));
+ assert.equal((await memoryState(players.stu)).playerStats.jack.clicks,1);
+ mem=await memoryState();
+ const doubleFlips=await Promise.all([1,2,3].map(()=>players.jack.request(memoryCommand(mem,'memory_flip',{position:second}))));
+ assert.equal(doubleFlips.filter(r=>r.status===200).length,1);mem=await memoryState();assert.equal(mem.found,1);assert.equal(mem.clicks,2);
+ assert.equal((await players.jack.request()).data.players.reduce((n,p)=>n+p.score,0),4);
+ const guests=['richard','stu','lauren'];
+ await Promise.all(guests.map(id=>memoryFlip(players[id],first)));
+ await Promise.all(guests.map(id=>memoryFlip(players[id],second)));
+ for(const c of Object.values(players)){const board=await memoryState(c);assert.equal(board.clicks,2);assert.equal(board.found,1);}
  assert.equal((await players.jack.request(memoryCommand(mem,'memory_pause'))).status,200);
  assert.equal((await players.jack.request({type:'menu'})).status,200);
- assert.equal((await players.jack.request({type:'choose',game:'memory'})).status,200);mem=await memoryState();assert.equal(mem.paused,true);assert.equal(mem.found,1);
+ assert.equal((await players.jack.request({type:'choose',game:'memory'})).status,200);mem=await memoryState();assert.equal(mem.paused,true);assert.equal(mem.found,1);assert.equal(mem.clicks,2);
  assert.equal((await players.jack.request(memoryCommand(mem,'memory_pause'))).status,200);
- await moveMemoryClock(r=>r.deadline=Date.now()-1);mem=await memoryState();assert.equal(mem.performer,picker);
- const staleTurn=mem.turn;
- assert.equal((await players[picker].request(memoryCommand(mem,'memory_flip',{position:pairs[1][0]}))).status,200);
- assert.equal((await players[picker].request(memoryCommand(mem,'memory_flip',{position:pairs[2][0]}))).status,200);
- assert.equal((await memoryState()).phase,'reveal');
- await moveMemoryClock(r=>r.deadline=Date.now()-1);mem=await memoryState();assert.notEqual(mem.performer,picker);assert.equal(mem.cards.filter(c=>c.face).length,2);
- assert.equal((await players[picker].request(memoryCommand(mem,'memory_flip',{position:pairs[1][0],turn:staleTurn}))).status,409);
- assert.equal((await players.stu.request(memoryCommand(mem,'memory_skip'))).status,403);
- assert.equal((await players.jack.request(memoryCommand(mem,'memory_skip'))).status,200);
- for(const pair of pairs.slice(1)){mem=await memoryState();const c=players[mem.performer];for(const position of pair)assert.equal((await c.request(memoryCommand(mem,'memory_flip',{position}))).status,200);await moveMemoryClock(r=>r.deadline=Date.now()-1);}
- mem=await memoryState();assert.equal(mem.complete,true);assert.equal(mem.found,12);assert.equal(mem.cards.filter(c=>c.face).length,24);assert.equal((await players.jack.request()).data.players.reduce((n,p)=>n+p.score,0),16);
+ await moveMemoryClock(r=>{for(const b of Object.values(r.boards))b.deadline=Date.now()-1;});
+ // Deliberate misses produce distinct totals. Slowest finisher Richard still wins.
+ for(const [id,misses]of [['lauren',3],['jack',2],['stu',1],['richard',0]]){
+  const c=players[id];
+  for(let n=0;n<misses;n++){const stale=(await memoryState(c)).turn;await memoryFlip(c,pairs[1][0]);await memoryFlip(c,pairs[2][0]);assert.equal((await memoryState(c)).phase,'reveal');await finishMemoryReveal(id);assert.equal((await c.request(memoryCommand(await memoryState(c),'memory_flip',{position:pairs[1][0],turn:stale}))).status,409);}
+  for(const pair of pairs.slice(1)){for(const position of pair)await memoryFlip(c,position);await finishMemoryReveal(id);}
+  assert.equal((await memoryState(c)).clicks,24+misses*2);assert.equal((await memoryState(c)).finished,true);
+  if(id!=='richard'){assert.equal((await memoryState(c)).complete,false);assert.equal((await players.jack.request(memoryCommand(await memoryState(),'memory_finish'))).status,400);}
+ }
+ mem=await memoryState();assert.equal(mem.complete,true);assert.equal(mem.found,12);assert.equal(mem.cards.filter(c=>c.face).length,24);
+ assert.deepEqual(mem.results.map(r=>[r.player,r.rank,r.clicks,r.points,r.last]),[['richard',1,24,5,false],['stu',2,26,3,false],['jack',3,28,1,false],['lauren',4,30,0,true]]);
+ assert.equal((await players.jack.request()).data.players.reduce((n,p)=>n+p.score,0),13);
+ for(const c of Object.values(players))assert.deepEqual((await memoryState(c)).results,mem.results);
+ assert.equal((await players.jack.request(memoryCommand(mem,'memory_flip',{position:first}))).status,400);
  assert.equal((await players.jack.request(memoryCommand(mem,'memory_finish'))).data.stage,'round_end');
  assert.equal((await players.jack.request({type:'lobby'})).status,200);
  assert.equal((await players.jack.request({type:'leave'})).data.isHost,false);
@@ -161,8 +175,8 @@ try{
  await moveMemoryClock(r=>{r.previewAt=Date.now()-100;r.deadline=Date.now()+8000;});
  const soloPairs=Object.values(Object.groupBy((await memoryState(observer)).cards,c=>c.face)).map(v=>v.map(c=>c.position));
  await moveMemoryClock(r=>r.deadline=Date.now()-1);
- for(const pair of soloPairs){const state=await memoryState(observer);for(const position of pair)assert.equal((await observer.request(memoryCommand(state,'memory_flip',{position}))).status,200);await moveMemoryClock(r=>r.deadline=Date.now()-1);}
- const soloDone=await memoryState(observer);assert.equal(soloDone.found,12);assert.equal(soloDone.complete,true);assert.equal((await observer.request()).data.players.find(p=>p.id==='jack').score,0);
+ for(const pair of soloPairs){for(const position of pair)await memoryFlip(observer,position);await finishMemoryReveal('jack');}
+ const soloDone=await memoryState(observer);assert.equal(soloDone.found,12);assert.equal(soloDone.clicks,24);assert.equal(soloDone.complete,true);assert.equal((await observer.request()).data.players.find(p=>p.id==='jack').score,0);
  assert.equal((await observer.request(memoryCommand(soloDone,'memory_finish'))).status,200);
  assert.equal((await observer.request({type:'menu'})).status,200);
  for(const game of ['pitch']){
@@ -173,5 +187,5 @@ try{
   assert.equal((await observer.request()).data.round.performer,'jack');
   assert.equal((await observer.request({type:'menu'})).status,200);
  }
- console.log('Memory integration passed: 24 shared cards, timed concealment, turn enforcement, racing clicks, one award per pair, misses, pause/resume, all pairs, solo no-score. Hangman integration passed: private word, concurrent shared letters, duplicate life protection, cooperative scoring, setter exclusion, one rotation and solo play. Pictionary integration passed: private prompt, shared streamed drawing, concurrent guesses, one winner, timeout, rotation, solo practice. Solo and intro integration passed. Integration passed: no sign-in, Jack selection and host transfer, four independent sessions, concurrent joins/answers, persistent refresh, host-only controls, hidden answers, shared scoring, synchronised progression, stale actions and cross-origin protection.');
+ console.log('Memory integration passed: 24-card shared layout, private individual boards, simultaneous play, exactly-once click counting, fewest-click ranking, 5/3/1/0 awards, Nob head label, pause/resume, refresh and solo no-score. Hangman integration passed: private word, concurrent shared letters, duplicate life protection, cooperative scoring, setter exclusion, one rotation and solo play. Pictionary integration passed: private prompt, shared streamed drawing, concurrent guesses, one winner, timeout, rotation, solo practice. Solo and intro integration passed. Integration passed: no sign-in, Jack selection and host transfer, four independent sessions, concurrent joins/answers, persistent refresh, host-only controls, hidden answers, shared scoring, synchronised progression, stale actions and cross-origin protection.');
 }finally{await mf.dispose();}
