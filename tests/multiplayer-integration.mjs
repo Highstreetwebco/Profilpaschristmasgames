@@ -4,23 +4,49 @@ import {readdirSync,readFileSync,mkdirSync} from 'node:fs';
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
 import assert from 'node:assert/strict';
+import {PAGES_ORIGIN,PAGES_URL} from '../lib/deployment.js';
+const pagesMode=process.env.TEST_PAGES==='1';
 const root=process.cwd(),store=path.join(root,'node_modules/.pnpm');
 const packagePath=(name)=>path.join(store,readdirSync(store).find(n=>n.startsWith(name+'@')),'node_modules',name);
 const {build}=await import(pathToFileURL(path.join(packagePath('esbuild'),'lib/main.js')));
 const {Miniflare}=await import(pathToFileURL(path.join(packagePath('miniflare'),'dist/src/index.js')));
 mkdirSync('.sites-runtime',{recursive:true});
-await build({stdin:{contents:`import {GET,POST} from './app/api/room/route.ts';export default {fetch(req){return req.method==='POST'?POST(req):GET(req)}}`,resolveDir:root,sourcefile:'integration-worker.ts',loader:'ts'},bundle:true,format:'esm',platform:'neutral',external:['cloudflare:workers'],outfile:'.sites-runtime/integration-worker.mjs'});
+await build({stdin:{contents:`import {GET,POST,OPTIONS} from './app/api/room/route.ts';import {GET as MOVE} from './app/api/move/route.ts';export default {fetch(req){return new URL(req.url).pathname==='/api/move'?MOVE(req):req.method==='OPTIONS'?OPTIONS(req):req.method==='POST'?POST(req):GET(req)}}`,resolveDir:root,sourcefile:'integration-worker.ts',loader:'ts'},bundle:true,format:'esm',platform:'neutral',external:['cloudflare:workers'],outfile:'.sites-runtime/integration-worker.mjs'});
 const mf=new Miniflare({modules:true,scriptPath:'.sites-runtime/integration-worker.mjs',compatibilityDate:'2026-05-15',compatibilityFlags:['nodejs_compat'],d1Databases:{DB:'isolated-christmas-test'},cf:false});
 try{
  const db=await mf.getD1Database('DB');
  const sql=readFileSync('drizzle/0000_large_roulette.sql','utf8');for(const statement of sql.split('--> statement-breakpoint'))await db.prepare(statement.trim()).run();
- function client(){let cookie='';const headers=()=>({...cookie?{cookie}:{}});return{async request(command){const res=await mf.dispatchFetch('https://game.test/api/room',{method:command?'POST':'GET',headers:{...headers(),...command?{'content-type':'application/json',origin:'https://game.test'}:{}},...command?{body:JSON.stringify({requestId:crypto.randomUUID(),...command})}:{}});if(res.headers.get('set-cookie'))cookie=res.headers.get('set-cookie').split(';')[0];const data=await res.json();return{status:res.status,data};}};}
+ function client(){
+  let cookie='',token=crypto.randomUUID().replaceAll('-','')+crypto.randomUUID().replaceAll('-',''),pages=pagesMode;
+  return{
+   async migrate(){
+    const before=await this.request();
+    const res=await mf.dispatchFetch('https://game.test/api/move',{redirect:'manual',headers:{cookie,origin:'https://game.test','sec-fetch-mode':'navigate'}});
+    assert.equal(res.status,303);const target=new URL(res.headers.get('location'));assert.equal(target.origin+target.pathname,PAGES_URL);assert.equal(target.search,'');
+    token=new URLSearchParams(target.hash.slice(1)).get('player');assert.match(token,/^[a-f0-9]{64}$/);pages=true;
+    const after=await this.request();assert.equal(after.data.me,before.data.me);assert.equal(after.data.isHost,before.data.isHost);assert.deepEqual(after.data.players.map(p=>p.score),before.data.players.map(p=>p.score));
+   },
+   async request(command){
+    const headers=pages?{origin:PAGES_ORIGIN,authorization:'Bearer '+token,'sec-fetch-site':'cross-site'}:{...cookie?{cookie}:{},...command?{origin:'https://game.test'}:{}};
+    const res=await mf.dispatchFetch('https://game.test/api/room',{method:command?'POST':'GET',headers:{...headers,...command?{'content-type':'application/json'}:{}},...command?{body:JSON.stringify({requestId:crypto.randomUUID(),...command})}:{}});
+    if(pages){assert.equal(res.headers.get('access-control-allow-origin'),PAGES_ORIGIN);assert.equal(res.headers.get('access-control-allow-credentials'),null);assert.equal(res.headers.get('set-cookie'),null);}
+    else if(res.headers.get('set-cookie'))cookie=res.headers.get('set-cookie').split(';')[0];
+    const data=await res.json();return{status:res.status,data};
+   }
+  };
+ }
+ const preflight=await mf.dispatchFetch('https://game.test/api/room',{method:'OPTIONS',headers:{origin:PAGES_ORIGIN,'access-control-request-method':'POST','access-control-request-headers':'authorization,content-type'}});assert.equal(preflight.status,204);assert.equal(preflight.headers.get('access-control-allow-origin'),PAGES_ORIGIN);
+ for(const method of ['GET','OPTIONS','POST'])assert.equal((await mf.dispatchFetch('https://game.test/api/room',{method,headers:{origin:'https://evil.test'}})).status,403);
+ assert.equal((await mf.dispatchFetch('https://game.test/api/room',{headers:{origin:PAGES_ORIGIN}})).status,401);
+ assert.equal((await mf.dispatchFetch('https://game.test/api/room',{headers:{origin:PAGES_ORIGIN,authorization:'Bearer invalid'}})).status,401);
+
  const players={richard:client(),stu:client(),jack:client(),lauren:client()};
  await Promise.all(Object.values(players).map(c=>c.request()));
  const joins=await Promise.all(Object.entries(players).map(([player,c])=>c.request({type:'join',player})));
  for(const j of joins)assert.equal(j.status,200,JSON.stringify(j.data));
  const observer=client();await observer.request();assert.equal((await observer.request({type:'join',player:'richard'})).status,409);assert.equal((await observer.request({type:'join',player:'jack'})).status,409);
  for(const[name,c]of Object.entries(players)){const s=(await c.request()).data;assert.equal(s.me,name);assert.equal(s.readyCount,4);assert.equal(s.isHost,name==='jack');}
+ if(!pagesMode)await players.jack.migrate(); // Preserve the existing Jack slot when moving to GitHub.
  assert.equal((await players.stu.request({type:'start'})).status,403);
  const started=await players.jack.request({type:'start'});assert.equal(started.status,200);assert.equal(started.data.stage,'intro');
  assert.equal((await players.lauren.request()).data.intro.startsAt,started.data.intro.startsAt);
@@ -279,5 +305,5 @@ try{
  soloBattle=await battleState(observer);assert.equal(soloBattle.complete,true);assert.ok(soloBattle.results.every(r=>r.points===0));assert.ok(soloBattle.fleets.find(f=>f.bot).fired>0);
  assert.equal((await observer.request()).data.players.find(p=>p.id==='jack').score,0);
  assert.equal((await observer.request(battleCommand(soloBattle,'battle_finish'))).data.stage,'round_end');
- console.log('Game briefing integration passed: shared screens, game actions blocked, host-only start, concurrent idempotency, stale starts rejected, replay and solo. Single-game replay integration passed: authenticated host, concurrent idempotent restart, stale requests rejected, other game scores and manual corrections preserved. Battleships integration passed: private fleets in all phases, concurrent confirmations with automatic launch, any-opponent targeting, one shot per turn, impact-timed pegs, animation lock, pause/refresh, elimination ranking, 5/3/1/0 awards and queued solo animations. Memory integration passed: four concurrent image-readiness confirmations, preview gate, 24-card shared layout, private individual boards, simultaneous play, exactly-once click counting, fewest-click ranking, 5/3/1/0 awards, Nob head label, pause/resume, refresh and solo no-score. Hangman integration passed: private word, concurrent shared letters, duplicate life protection, cooperative scoring, setter exclusion, one rotation and solo play. Pictionary integration passed: private prompt, shared streamed drawing, concurrent guesses, one winner, timeout, rotation, solo practice. Solo and intro integration passed. Integration passed: no sign-in, Jack selection and host transfer, four independent sessions, concurrent joins/answers, persistent refresh, host-only controls, hidden answers, shared scoring, synchronised progression, stale actions and cross-origin protection.');
+ console.log(`${pagesMode?'GitHub Pages bearer sessions':'Mixed cookie and transferred GitHub sessions'}: all integration checks passed. `+'Game briefing integration passed: shared screens, game actions blocked, host-only start, concurrent idempotency, stale starts rejected, replay and solo. Single-game replay integration passed: authenticated host, concurrent idempotent restart, stale requests rejected, other game scores and manual corrections preserved. Battleships integration passed: private fleets in all phases, concurrent confirmations with automatic launch, any-opponent targeting, one shot per turn, impact-timed pegs, animation lock, pause/refresh, elimination ranking, 5/3/1/0 awards and queued solo animations. Memory integration passed: four concurrent image-readiness confirmations, preview gate, 24-card shared layout, private individual boards, simultaneous play, exactly-once click counting, fewest-click ranking, 5/3/1/0 awards, Nob head label, pause/resume, refresh and solo no-score. Hangman integration passed: private word, concurrent shared letters, duplicate life protection, cooperative scoring, setter exclusion, one rotation and solo play. Pictionary integration passed: private prompt, shared streamed drawing, concurrent guesses, one winner, timeout, rotation, solo practice. Solo and intro integration passed. Integration passed: no sign-in, Jack selection and host transfer, four independent sessions, concurrent joins/answers, persistent refresh, host-only controls, hidden answers, shared scoring, synchronised progression, stale actions and cross-origin protection.');
 }finally{await mf.dispose();}

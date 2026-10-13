@@ -68,3 +68,5 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
  .battleships-stage.battle-active[data-fleet-count="4"]{gap:10px 18px;grid-template-columns:minmax(260px,28%) minmax(0,1fr)}.battle-active[data-fleet-count="4"] .battle-heading{gap:8px;padding-top:0}.battle-active[data-fleet-count="4"] .battle-heading h1{font-size:29px}.battle-active[data-fleet-count="4"] .battle-turn-banner{min-height:90px;padding:10px}.battle-active[data-fleet-count="4"] .turn-announcement{font-size:23px}.battle-active[data-fleet-count="4"] .naval-firebar{padding:10px}.battle-active[data-fleet-count="4"] .naval-commentary{font-size:12px;line-height:1.5}
  .guess-heading{padding-top:7px;padding-bottom:7px}.secret-word strong{font-size:22px}.guess-history{max-height:70px}.drawing-result{padding:7px}
 }
+
+.migration-note{position:relative;z-index:2;flex-shrink:0;text-align:center;padding:8px 16px;font-size:11px;line-height:1.5;background:#e8cf920b;color:var(--muted)}.migration-note a{color:var(--gold);text-decoration:underline;text-underline-offset:3px;margin-left:6px}

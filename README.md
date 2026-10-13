@@ -2,9 +2,11 @@
 
 A shared four-player games centre for Richard, Stu, Jack and Lauren. Jack is the ringmaster and controls the whole room.
 
-Live site: https://profilpas-christmas-games-2026.jackmoycetroth.chatgpt.site
+Live site: https://highstreetwebco.github.io/Profilpaschristmasgames/
 
-GitHub Pages entry: https://highstreetwebco.github.io/Profilpaschristmasgames/ — the root `index.html` redirects to the live game because its shared backend runs on Sites. `.nojekyll` prevents Pages from rendering this README as the website.
+GitHub Pages serves the actual React game from the root `index.html` and compiled `github-pages/` bundle. There is no redirect or iframe. `.nojekyll` retains the existing main-branch/root publishing setup. Run `npm run build:pages` after any client changes and commit the generated entry and bundle with the source. Assets stay in `public/assets`; the Pages build rewrites their paths for the repository subdirectory.
+
+The multiplayer API and existing D1 database remain on the current Worker behind the scenes. GitHub Pages uses explicit random per-browser bearer sessions with a single allowed CORS origin, without third-party cookies. The existing same-origin site still accepts its HttpOnly cookie. `/api/move` transfers that same player's credential in a fragment to the fixed GitHub URL; the client stores it and immediately removes the fragment. Copy game link always shares the GitHub address. No room reset or database migration is needed.
 
 Source: https://github.com/Highstreetwebco/Profilpaschristmasgames
 
