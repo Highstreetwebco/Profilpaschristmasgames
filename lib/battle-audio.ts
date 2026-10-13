@@ -14,9 +14,8 @@ export function createBattleAudio(){
   unlock(){if(disposed||!enabled)return false;try{context??=new AudioContext();void context.resume();if(!unlocked&&'speechSynthesis' in window){const prime=new SpeechSynthesisUtterance('');window.speechSynthesis.speak(prime);}unlocked=true;return true;}catch{return false;}},
   setEnabled(value:boolean){enabled=value;if(!value)stop();},
   play(kind:string,line?:{text:string;speaker:string}){if(disposed||!enabled||!unlocked)return;
-   if(kind==='run'){for(let i=0;i<7;i++)tone(160,65,.075,.045,i*.13,'triangle');}
-   else if(kind==='fall')tone(1150,160,.64,.07,0,'sine');
-   else if(kind==='explosion'){noise(.7,.24,true);tone(105,25,.5,.16,0,'triangle');}
+   if(kind==='launch'){noise(.9,.1,false);tone(200,1400,.65,.055,0,'sawtooth');tone(1400,210,.9,.06,.65);}
+   else if(kind==='explosion'){noise(1.1,.3,true);tone(110,24,.85,.18,0,'triangle');tone(65,22,1,.1,.08);}
    else if(kind==='splash'){noise(.55,.14,false);tone(530,110,.28,.065);}
    else if(kind==='voice'&&line&&'speechSynthesis' in window){const voice=new SpeechSynthesisUtterance(line.text),voices=window.speechSynthesis.getVoices().filter(v=>/^en[-_]GB$/i.test(v.lang));const profile:{[key:string]:number}={jack:0,stu:1,lauren:2,richard:3,'practice-navy':3};const index=profile[line.speaker]||0;if(voices.length)voice.voice=voices[index%voices.length];voice.lang='en-GB';voice.rate=1.17;voice.pitch=[1.05,.85,1.2,.92][index];voice.volume=.8;window.speechSynthesis.cancel();window.speechSynthesis.speak(voice);}
   },
