@@ -194,6 +194,23 @@ try{
  for(const c of Object.values(players))assert.deepEqual((await battleState(c)).results,battle.results);
  assert.equal((await players.stu.request(battleCommand(battle,'battle_finish'))).status,403);
  assert.equal((await players.jack.request(battleCommand(battle,'battle_finish'))).data.stage,'round_end');
+ // Replay one completed game through the real API, including racing duplicate
+ // requests. Other game awards, layouts and manual score corrections survive.
+ const oldMemoryId=mem.roundId;
+ const restart={type:'restart_game',game:'memory',roundId:oldMemoryId,confirmRestart:true,requestId:crypto.randomUUID()};
+ assert.equal((await players.stu.request(restart)).status,403);
+ assert.equal((await players.jack.request({type:'adjust',player:'jack',points:2,reason:'Keep this manual correction'})).status,200);
+ const restarts=await Promise.all([players.jack.request(restart),players.jack.request(restart)]);
+ restarts.forEach(r=>assert.equal(r.status,200,JSON.stringify(r.data)));
+ const freshMemoryId=restarts[0].data.round.roundId;assert.notEqual(freshMemoryId,oldMemoryId);assert.equal(restarts[1].data.round.roundId,freshMemoryId);
+ for(const c of Object.values(players)){
+  const reset=(await c.request()).data;assert.equal(reset.activeGame,'memory');assert.equal(reset.round.roundId,freshMemoryId);
+  assert.equal(reset.round.phase,'ready');assert.equal(reset.round.clicks,0);assert.ok(reset.round.cards.every(c=>!c.face));
+  assert.equal(reset.players.reduce((sum,p)=>sum+p.score,0),15);
+  assert.equal(reset.games.find(g=>g.id==='battleships').roundId,battle.roundId);
+ }
+ assert.equal((await players.jack.request(memoryCommand(mem,'memory_flip',{position:first}))).status,409);
+ assert.equal((await players.jack.request({...restart,requestId:crypto.randomUUID()})).status,409);
  assert.equal((await players.jack.request({type:'lobby'})).status,200);
  assert.equal((await players.jack.request({type:'leave'})).data.isHost,false);
  const newHost=await observer.request({type:'join',player:'jack'});assert.equal(newHost.status,200);assert.equal(newHost.data.isHost,true);
@@ -245,5 +262,5 @@ try{
  soloBattle=await battleState(observer);assert.equal(soloBattle.complete,true);assert.ok(soloBattle.results.every(r=>r.points===0));assert.ok(soloBattle.fleets.find(f=>f.bot).fired>0);
  assert.equal((await observer.request()).data.players.find(p=>p.id==='jack').score,0);
  assert.equal((await observer.request(battleCommand(soloBattle,'battle_finish'))).data.stage,'round_end');
- console.log('Battleships integration passed: private fleets in all phases, concurrent confirmations with automatic launch, any-opponent targeting, one shot per turn, impact-timed pegs, animation lock, pause/refresh, elimination ranking, 5/3/1/0 awards and queued solo animations. Memory integration passed: four concurrent image-readiness confirmations, preview gate, 24-card shared layout, private individual boards, simultaneous play, exactly-once click counting, fewest-click ranking, 5/3/1/0 awards, Nob head label, pause/resume, refresh and solo no-score. Hangman integration passed: private word, concurrent shared letters, duplicate life protection, cooperative scoring, setter exclusion, one rotation and solo play. Pictionary integration passed: private prompt, shared streamed drawing, concurrent guesses, one winner, timeout, rotation, solo practice. Solo and intro integration passed. Integration passed: no sign-in, Jack selection and host transfer, four independent sessions, concurrent joins/answers, persistent refresh, host-only controls, hidden answers, shared scoring, synchronised progression, stale actions and cross-origin protection.');
+ console.log('Single-game replay integration passed: authenticated host, concurrent idempotent restart, stale requests rejected, other game scores and manual corrections preserved. Battleships integration passed: private fleets in all phases, concurrent confirmations with automatic launch, any-opponent targeting, one shot per turn, impact-timed pegs, animation lock, pause/refresh, elimination ranking, 5/3/1/0 awards and queued solo animations. Memory integration passed: four concurrent image-readiness confirmations, preview gate, 24-card shared layout, private individual boards, simultaneous play, exactly-once click counting, fewest-click ranking, 5/3/1/0 awards, Nob head label, pause/resume, refresh and solo no-score. Hangman integration passed: private word, concurrent shared letters, duplicate life protection, cooperative scoring, setter exclusion, one rotation and solo play. Pictionary integration passed: private prompt, shared streamed drawing, concurrent guesses, one winner, timeout, rotation, solo practice. Solo and intro integration passed. Integration passed: no sign-in, Jack selection and host transfer, four independent sessions, concurrent joins/answers, persistent refresh, host-only controls, hidden answers, shared scoring, synchronised progression, stale actions and cross-origin protection.');
 }finally{await mf.dispose();}
