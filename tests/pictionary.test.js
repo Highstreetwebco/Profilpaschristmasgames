@@ -7,7 +7,7 @@ const time=1800000000000;
 const actors=Object.fromEntries(roster.map(p=>[p.id,{key:'session:'+p.id}]));
 const seen=Object.fromEntries(Object.values(actors).map(a=>[a.key,time]));
 function change(r,who,type,extra={},now=time){return transition(r,actors[who],{type,game:'pictionary',index:r.rounds.pictionary?.index,roundId:r.rounds.pictionary?.id,requestId:crypto.randomUUID(),...extra},seen,now);}
-function ready(ids=roster.map(p=>p.id)){let r=newRoom();for(const id of ids)r=change(r,id,'join',{player:id});r=change(r,'jack','start',{},time-INTRO_DURATION-INTRO_LEAD_IN);return change(r,'jack','choose');}
+function ready(ids=roster.map(p=>p.id)){let r=newRoom();for(const id of ids)r=change(r,id,'join',{player:id});r=change(r,'jack','start',{},time-INTRO_DURATION-INTRO_LEAD_IN);r=change(r,'jack','choose');return change(r,'jack','begin_game');}
 const view=(r,who='jack',now=time)=>snapshot(r,actors[who],seen,now);
 const word=r=>drawingWords[r.rounds.pictionary.deck[r.rounds.pictionary.index]][0];
 const stroke=()=>({stroke:crypto.randomUUID(),colour:'#20352d',width:6,points:[[10,20],[200,80]],canvasEpoch:0});
@@ -48,7 +48,7 @@ test('eight drawings rotate fairly, stale turns are blocked and no manual award 
 test('solo practice has exactly two drawings, supports guessing but awards no points, and old instance requests fail after reset',()=>{
  let r=ready(['jack']),oldId=r.rounds.pictionary.id;assert.equal(view(r).round.solo,true);assert.equal(view(r).round.total,2);
  for(let i=0;i<2;i++){r=change(r,'jack','pictionary_start');r=change(r,'jack','pictionary_ink',stroke());r=change(r,'jack','pictionary_guess',{answer:word(r)});assert.equal(view(r).round.outcome,'practice');r=change(r,'jack','pictionary_next');}
- assert.equal(r.stage,'round_end');assert.equal(r.ledger.length,0);r=change(r,'jack','reset');r=change(r,'jack','ready',{ready:true});r=change(r,'jack','start',{},time-INTRO_DURATION-INTRO_LEAD_IN);r=change(r,'jack','choose');assert.throws(()=>change(r,'jack','pictionary_start',{roundId:oldId}),/moved on/);
+ assert.equal(r.stage,'round_end');assert.equal(r.ledger.length,0);r=change(r,'jack','reset');r=change(r,'jack','ready',{ready:true});r=change(r,'jack','start',{},time-INTRO_DURATION-INTRO_LEAD_IN);r=change(r,'jack','choose');r=change(r,'jack','begin_game');assert.throws(()=>change(r,'jack','pictionary_start',{roundId:oldId}),/moved on/);
 });
 test('players excluded at the session start cannot draw or guess',()=>{
  let r=ready(['jack']);r=change(r,'jack','pictionary_start');assert.throws(()=>change(r,'stu','pictionary_guess',{answer:word(r)}),/join as a player/);

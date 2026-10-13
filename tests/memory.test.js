@@ -6,7 +6,7 @@ import {MEMORY_PREVIEW_MS,MEMORY_LEAD_MS,MEMORY_REVEAL_MS,MEMORY_MATCH_MS,settle
 import {INTRO_DURATION,INTRO_LEAD_IN} from '../lib/intro-timeline.js';
 const time=1800000000000,actors=Object.fromEntries(roster.map(p=>[p.id,{key:'memory:'+p.id}])),seen=Object.fromEntries(Object.values(actors).map(a=>[a.key,time]));
 function action(room,id,type,extra={},now=time){return transition(room,actors[id],{type,game:'memory',roundId:room.rounds.memory?.id,turn:room.rounds.memory?memorySnapshot(room.rounds.memory,{id},now).turn:undefined,requestId:crypto.randomUUID(),...extra},seen,now);}
-function setup(ids=roster.map(p=>p.id),loaded=true){let r=newRoom();for(const id of ids)r=action(r,id,'join',{player:id});r=action(r,'jack','start',{},time-INTRO_DURATION-INTRO_LEAD_IN);r=action(r,'jack','choose');if(loaded)for(const id of ids)r=action(r,id,'memory_loaded');return r;}
+function setup(ids=roster.map(p=>p.id),loaded=true){let r=newRoom();for(const id of ids)r=action(r,id,'join',{player:id});r=action(r,'jack','start',{},time-INTRO_DURATION-INTRO_LEAD_IN);r=action(r,'jack','choose');r=action(r,'jack','begin_game');if(loaded)for(const id of ids)r=action(r,id,'memory_loaded');return r;}
 const view=(r,id='jack',now=time)=>snapshot(r,actors[id],seen,now);
 const playAt=time+MEMORY_LEAD_MS+MEMORY_PREVIEW_MS;
 function ready(ids){const r=action(setup(ids),'jack','memory_start');settleMemory(r.rounds.memory,playAt);return r;}

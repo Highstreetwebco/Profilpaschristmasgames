@@ -6,7 +6,7 @@ import {INTRO_DURATION,INTRO_LEAD_IN} from '../lib/intro-timeline.js';
 const time=1800000000000,ids=roster.map(p=>p.id),actors=Object.fromEntries(ids.map(id=>[id,{key:`battle:${id}`}])) ,seen=Object.fromEntries(ids.map(id=>[`battle:${id}`,time]));
 function act(r,id,type,extra={},presence=seen){const b=r.rounds.battleships;return transition(r,actors[id],{type,game:'battleships',roundId:b?.id,turn:b?.turn,revision:b?.fleets[id]?.revision,requestId:crypto.randomUUID(),...extra},presence,Math.max(time,b?.animationUntil||0));}
 const view=(r,id='jack')=>snapshot(r,actors[id]||{key:'observer'},seen,Math.max(time,r.rounds.battleships?.animationUntil||0));
-function setup(players=ids){let r=newRoom();for(const id of players)r=act(r,id,'join',{player:id});r=transition(r,actors.jack,{type:'start',requestId:crypto.randomUUID()},seen,time-INTRO_DURATION-INTRO_LEAD_IN);return act(r,'jack','choose');}
+function setup(players=ids){let r=newRoom();for(const id of players)r=act(r,id,'join',{player:id});r=transition(r,actors.jack,{type:'start',requestId:crypto.randomUUID()},seen,time-INTRO_DURATION-INTRO_LEAD_IN);r=act(r,'jack','choose');return act(r,'jack','begin_game');}
 function ready(players=ids){let r=setup(players);for(const id of players)r=act(r,id,'battle_ready',{ready:true});return r;}
 function playing(players=ids){return ready(players);}
 const shoot=(r,target,position,extra={})=>act(r,r.rounds.battleships.performer,'battle_fire',{target,position,...extra});

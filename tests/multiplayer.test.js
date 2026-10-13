@@ -8,7 +8,7 @@ const seen=Object.fromEntries(Object.values(actors).map(a=>[a.key,time]));
 const command=(type,extra={})=>({type,requestId:crypto.randomUUID(),...extra});
 function change(r,who,type,extra={},now=time){return transition(r,actors[who],command(type,extra),seen,now);}
 function readyRoom(){let r=newRoom();for(const p of roster)r=change(r,p.id,'join',{player:p.id});return r;}
-function playing(id='memory'){let r=readyRoom();r=change(r,'jack','start',{},time-INTRO_DURATION-INTRO_LEAD_IN);return change(r,'jack','choose',{game:id});}
+function playing(id='memory'){let r=readyRoom();r=change(r,'jack','start',{},time-INTRO_DURATION-INTRO_LEAD_IN);r=change(r,'jack','choose',{game:id});return change(r,'jack','begin_game',{game:id,roundId:r.rounds[id].id});}
 test('all four actors see readiness and only Jack can start',()=>{let r=newRoom();r=change(r,'richard','join',{player:'richard'});assert.equal(snapshot(r,actors.lauren,seen,time).readyCount,1);assert.throws(()=>change(r,'richard','start'),/Only Jack/);r=change(r,'jack','join',{player:'jack'});assert.equal(snapshot(r,actors.jack,seen,time).canStart,true);r=change(r,'stu','join',{player:'stu'});r=change(r,'lauren','join',{player:'lauren'});r=change(r,'jack','start');for(const a of Object.values(actors)){assert.equal(snapshot(r,a,seen,time).stage,'intro');assert.equal(snapshot(r,a,seen,r.intro.endsAt).stage,'menu');}});
 test('any anonymous browser can select Jack; authority follows the selected name',()=>{let r=newRoom();r=change(r,'stu','join',{player:'jack'});assert.equal(snapshot(r,actors.stu,seen,time).isHost,true);assert.equal(snapshot(r,actors.jack,seen,time).isHost,false);assert.throws(()=>change(r,'jack','join',{player:'jack'}),/already playing/);r=change(r,'stu','leave');assert.equal(snapshot(r,actors.stu,seen,time).isHost,false);r=change(r,'lauren','join',{player:'jack'});assert.equal(snapshot(r,actors.lauren,seen,time).isHost,true);});
 test('players cannot steal an active name or control host operations',()=>{let r=newRoom();r=change(r,'richard','join',{player:'richard'});assert.throws(()=>change(r,'lauren','join',{player:'richard'}),/already playing/);const active=playing();for(const type of['choose','timer','next','reveal','award','menu','lobby','podium','reset','adjust','release'])assert.throws(()=>change(active,'stu',type,{game:'memory',index:0}),/Only Jack/);});
@@ -61,7 +61,7 @@ test('restarting a single game replaces only its automatic points and rejects st
   assert.throws(()=>change(r,'jack','restart_game',{...details,confirmRestart:false}),/Confirm/);
   assert.throws(()=>change(r,'jack','restart_game',{...details,roundId:'old'}),/already changed/);
   const action=command('restart_game',details);r=transition(r,actors.jack,action,seen,time);
-  assert.notEqual(r.rounds[game].id,old.id);assert.equal(r.stage,'playing');assert.equal(r.activeGame,game);
+  assert.notEqual(r.rounds[game].id,old.id);assert.equal(r.stage,'briefing');assert.equal(r.activeGame,game);
   assert.deepEqual(r.ledger.map(e=>e.key),['other:score','adjust:manual']);assert.deepEqual(r.rounds.other,{marker:'keep me'});
   assert.equal(snapshot(r,actors.jack,seen,time).games.find(g=>g.id===game).roundId,r.rounds[game].id);
   assert.deepEqual(transition(r,actors.jack,action,seen,time),r);
