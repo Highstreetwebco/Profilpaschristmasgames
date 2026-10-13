@@ -18,14 +18,14 @@ Source: https://github.com/Highstreetwebco/Profilpaschristmasgames
 6. The pad supports mouse, touch and stylus, seven colours, an eraser, four brush sizes, undo and clear. No letters, numbers, speaking or gestures while drawing. Solo practice gives Jack two drawings and a guessing-box test, without awarding points.
 7. Game two is cooperative Hangman (“Save the Elf”). Each player sets one secret word in an assigned work category: colleagues, customers/suppliers, tiling tools, products/profiles, materials/finishes, installation/site work, sales/office or brands/ranges. Names, short words such as Stu, and hyphenated phrases are supported (2–24 letters, 32 characters overall). The setter confirms relevance, team familiarity and spelling before locking it. Everyone else shares six mistakes and can submit a letter or a whole answer. A wrong answer costs one chance; duplicate guesses never cost an extra chance. Saving the setter’s avatar awards each guesser 1 point, with no reward for stumping the team. Each wrong guess adds a head, body, arm or leg to the elf; its head is the setter’s actual avatar. Solo practice supports both roles without scoring. Jack can pause, end a disputed word, or move to the next setter.
 8. In Memory Match, study 24 picture cards for eight seconds, then everyone clears their own copy of the same layout. Fewest card flips wins: first gets 5 points, second 3, third 1, and last place is called Nob head. Scores are awarded once everyone finishes.
-9. For sales-pitch challenges, players perform aloud in Teams and Jack awards 0–3 points.
-9. Listing and pitch turns rotate through the players who were ready when Jack started, so every solo turn belongs to Jack. Only Jack can pause the timer, choose games, move to the next card, adjust scores, return everyone to the lobby, reset the session or show the podium.
+9. Game four is four-player Battleships. Each captain places three ships on their own 8×8 sea and locks the fleet. Jack starts when everyone is ready. On your turn, select any surviving opponent, choose a square and fire one shot. Hit or miss, the turn passes. The last fleet afloat wins: 5 points for first, 3 for second, 1 for third, 0 for fourth.
+10. Solo Battleships adds Santa’s Navy as a computer opponent and never awards competition points. Only Jack can choose games, control round progression, pause, adjust scores, return everyone to the lobby, reset the session or show the podium.
 
 Refreshes restore the selected player. Presence expires after 20 seconds without a heartbeat. Jack can release a guest slot in the lobby if someone changes browser or device. A return to the lobby preserves scores but requires everyone to ready up again; Reset session clears scores and round progress.
 
 ## Shared state and authority
 
-The site now runs a Vinext/Cloudflare Worker with its own D1 database. It polls shared state every 1.5 seconds, increasing to every 500 ms during Pictionary, Hangman and Memory Match. Drawing points are streamed in small batches about every 180 ms; local ink appears immediately. Ready status, active round, answers, timers, scores and stage changes are shared between devices. Polling failures pause controls rather than pretending the room is connected.
+The site now runs a Vinext/Cloudflare Worker with its own D1 database. It polls shared state every 1.5 seconds, increasing to every 500 ms during all four games. Drawing points are streamed in small batches about every 180 ms; local ink appears immediately. Ready status, active round, answers, timers, scores and stage changes are shared between devices. Polling failures pause controls rather than pretending the room is connected.
 
 There was no dedicated Christmas project in the connected Supabase account, only an unrelated Barford golf project. That project was not changed. The game database is provisioned by Sites via the `DB` binding.
 
@@ -91,3 +91,20 @@ The server authenticates the player, board ID and personal selection revision. I
 Existing boards from the former shared-turn version restart Memory under the new rules, retaining the shuffled layout. Their obsolete per-pair awards are removed; all other game progress, scores and manual adjustments remain intact. No database schema migration is needed.
 
 The 6×4 desktop board becomes 4×6 on phones, with StageFit keeping the board, results and controls within the available viewport. Reduced motion removes the 3D flip. Artwork provenance is in `docs/memory-artwork.md`. Automated tests cover independent private boards, concurrent requests, accurate click counts, rankings, ties, migration, pauses and solo practice. Browser layout/pointer validation remains unavailable in this environment.
+
+
+## Battleships (game four)
+
+Battleships replaces Sell It to Santa. Each participant has a private 8×8 grid with a cruiser (4 cells), frigate (3) and patrol boat (2). Initial fleets are random and valid. Owners can shuffle or reposition each ship horizontally/vertically, with server-validated bounds and overlap checks. Ships may touch. The owner locks their fleet and can unlock it during setup; after Jack launches, no ships can move. All participants must be ready. Turn order is shuffled once and survives refresh.
+
+On each turn the captain selects any surviving opponent and fires once. Both hits and misses pass to the next surviving captain. All players share the shot history for each target, so a square cannot be hit again by another attacker. Enemy unhit positions are omitted from API responses, including Jack’s and observers’. A sunk ship’s full shape becomes public once every segment has been hit. Owners always see their own positions. Eliminated captains stop firing but can watch remaining seas and the log. Target selectors automatically move away from a sunk opponent.
+
+The last surviving fleet wins. Survival order awards 5/3/1/0 points once; hits and final-hit kill steals do not award extra points. Final standings include shot/hit counts, and completed fleets are revealed for review. Jack finishes the round. Existing scores from other games remain unchanged, and an old active pitch screen safely returns to the game menu. Reset session clears all old test progress and scores.
+
+Authenticated commands carry a battle ID, a personal fleet revision for placement and a turn revision for firing. Atomic D1 writes and request IDs prevent concurrent shots or retries from taking extra turns or duplicating points. Host pause/menu navigation retains fleets, the active captain and shot history. Only a disconnected current player (no heartbeat for 20 seconds) can be skipped by Jack; their fleet remains targetable. A returning player resumes the same fleet.
+
+With only Jack participating, Santa’s Navy is a computer captain with its own hidden fleet. It responds automatically, follows up public unsunk hits and otherwise chooses an untried square. It does not select shots using unhit ship positions. Either side can win, and neither receives competition points.
+
+Desktop shows the selected opponent’s grid beside the player’s private fleet. Mobile uses Target / My fleet tabs to keep grids usable within the single-screen stage. Ships are native SVG silhouettes, shots have brief impact rings, and reduced motion removes those rings. Keyboard users can select an opponent and square, then use the Fire button. No new image assets or database migration are required.
+
+Engine and isolated real-API tests cover all 12 attacker/target combinations, hidden fleets, placement bounds/overlaps, simultaneous setup, racing/replayed shots, sunk ships, elimination, turn rotation, pause/refresh, disconnected skips, final scoring and solo wins/losses. Browser rendering and pointer/touch QA remain unavailable in this environment.
