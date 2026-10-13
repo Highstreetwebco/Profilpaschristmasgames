@@ -49,7 +49,7 @@ export default function GamesCentre(){
  async function fullScreen(){try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen();}catch{notify('Fullscreen is unavailable in this browser.');}}
  function choosePlayer(id:string){act('join',{player:id});}
  const hostNavigation=room?.isHost&&!inLobby;
- return <div data-stage={room?.stage||'lobby'} className={`game-world ${inIntro?'intro-running':''}`}>
+ return <div data-game={room?.activeGame||undefined} data-stage={room?.stage||'lobby'} className={`game-world ${inIntro?'intro-running':''}`}>
   <div className="snowfield" aria-hidden="true"><i/><i/><i/><i/><i/><i/><i/><i/></div>
   <header className="game-header" inert={inIntro||undefined}><span className={corrected?'correct-brand':''}><BrandLogo/></span><div className="room-label"><span className={`signal ${connected?'online':''}`}/>{connected?'CHRISTMAS ROOM • CONNECTED':'CONNECTING TO THE ROOM'}</div><div className="header-buttons"><button className="icon-button" onClick={()=>setModal('help')} aria-label="How to play">?</button><button className="icon-button fullscreen" onClick={fullScreen} aria-label="Toggle fullscreen">⛶</button>{me&&<span className="you-badge"><Avatar avatar={me.avatar}/><span>{me.name}{room?.isHost&&<small>RINGMASTER</small>}</span></span>}</div></header>
   {!connected&&room&&<div className="connection-warning" role="status">Connection interrupted. Controls are paused while we reconnect. <button onClick={refresh}>Retry now</button></div>}
