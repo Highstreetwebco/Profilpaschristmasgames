@@ -101,6 +101,9 @@ try{
  const memOpen=(await players.jack.request({type:'choose',game:'memory'})).data.round;
  assert.equal(memOpen.cards.length,24);assert.ok(memOpen.cards.every(c=>c.face===null));
  assert.equal((await players.stu.request(memoryCommand(memOpen,'memory_start'))).status,403);
+ assert.equal((await players.jack.request(memoryCommand(memOpen,'memory_start'))).status,400);
+ const loading=await Promise.all(Object.values(players).map(c=>c.request(memoryCommand(memOpen,'memory_loaded'))));loading.forEach(r=>assert.equal(r.status,200,JSON.stringify(r.data)));
+ assert.deepEqual([...(await memoryState()).loaded].sort(),Object.keys(players).sort());
  assert.equal((await players.jack.request(memoryCommand(memOpen,'memory_start'))).status,200);
  await moveMemoryClock(r=>{r.previewAt=Date.now()-100;r.deadline=Date.now()+8000;});
  const peek=await memoryState();assert.equal(peek.cards.filter(c=>c.face).length,24);const pairs=Object.values(Object.groupBy(peek.cards,c=>c.face)).map(v=>v.map(c=>c.position));assert.equal(pairs.length,12);
@@ -222,7 +225,7 @@ try{
  assert.equal((await observer.request({type:'menu'})).status,200);
 
  const soloMemory=(await observer.request({type:'choose',game:'memory'})).data.round;
- assert.equal(soloMemory.solo,true);assert.equal((await observer.request(memoryCommand(soloMemory,'memory_start'))).status,200);
+ assert.equal(soloMemory.solo,true);assert.equal((await observer.request(memoryCommand(soloMemory,'memory_loaded'))).status,200);assert.equal((await observer.request(memoryCommand(soloMemory,'memory_start'))).status,200);
  await moveMemoryClock(r=>{r.previewAt=Date.now()-100;r.deadline=Date.now()+8000;});
  const soloPairs=Object.values(Object.groupBy((await memoryState(observer)).cards,c=>c.face)).map(v=>v.map(c=>c.position));
  await moveMemoryClock(r=>r.deadline=Date.now()-1);
@@ -242,5 +245,5 @@ try{
  soloBattle=await battleState(observer);assert.equal(soloBattle.complete,true);assert.ok(soloBattle.results.every(r=>r.points===0));assert.ok(soloBattle.fleets.find(f=>f.bot).fired>0);
  assert.equal((await observer.request()).data.players.find(p=>p.id==='jack').score,0);
  assert.equal((await observer.request(battleCommand(soloBattle,'battle_finish'))).data.stage,'round_end');
- console.log('Battleships integration passed: private fleets in all phases, concurrent confirmations with automatic launch, any-opponent targeting, one shot per turn, impact-timed pegs, animation lock, pause/refresh, elimination ranking, 5/3/1/0 awards and queued solo animations. Memory integration passed: 24-card shared layout, private individual boards, simultaneous play, exactly-once click counting, fewest-click ranking, 5/3/1/0 awards, Nob head label, pause/resume, refresh and solo no-score. Hangman integration passed: private word, concurrent shared letters, duplicate life protection, cooperative scoring, setter exclusion, one rotation and solo play. Pictionary integration passed: private prompt, shared streamed drawing, concurrent guesses, one winner, timeout, rotation, solo practice. Solo and intro integration passed. Integration passed: no sign-in, Jack selection and host transfer, four independent sessions, concurrent joins/answers, persistent refresh, host-only controls, hidden answers, shared scoring, synchronised progression, stale actions and cross-origin protection.');
+ console.log('Battleships integration passed: private fleets in all phases, concurrent confirmations with automatic launch, any-opponent targeting, one shot per turn, impact-timed pegs, animation lock, pause/refresh, elimination ranking, 5/3/1/0 awards and queued solo animations. Memory integration passed: four concurrent image-readiness confirmations, preview gate, 24-card shared layout, private individual boards, simultaneous play, exactly-once click counting, fewest-click ranking, 5/3/1/0 awards, Nob head label, pause/resume, refresh and solo no-score. Hangman integration passed: private word, concurrent shared letters, duplicate life protection, cooperative scoring, setter exclusion, one rotation and solo play. Pictionary integration passed: private prompt, shared streamed drawing, concurrent guesses, one winner, timeout, rotation, solo practice. Solo and intro integration passed. Integration passed: no sign-in, Jack selection and host transfer, four independent sessions, concurrent joins/answers, persistent refresh, host-only controls, hidden answers, shared scoring, synchronised progression, stale actions and cross-origin protection.');
 }finally{await mf.dispose();}

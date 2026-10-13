@@ -6,7 +6,7 @@ import {MEMORY_PREVIEW_MS,MEMORY_LEAD_MS,MEMORY_REVEAL_MS,settleMemory,memorySna
 import {INTRO_DURATION,INTRO_LEAD_IN} from '../lib/intro-timeline.js';
 const time=1800000000000,actors=Object.fromEntries(roster.map(p=>[p.id,{key:'memory:'+p.id}])),seen=Object.fromEntries(Object.values(actors).map(a=>[a.key,time]));
 function action(room,id,type,extra={},now=time){return transition(room,actors[id],{type,game:'memory',roundId:room.rounds.memory?.id,turn:room.rounds.memory?memorySnapshot(room.rounds.memory,{id},now).turn:undefined,requestId:crypto.randomUUID(),...extra},seen,now);}
-function setup(ids=roster.map(p=>p.id)){let r=newRoom();for(const id of ids)r=action(r,id,'join',{player:id});r=action(r,'jack','start',{},time-INTRO_DURATION-INTRO_LEAD_IN);return action(r,'jack','choose');}
+function setup(ids=roster.map(p=>p.id),loaded=true){let r=newRoom();for(const id of ids)r=action(r,id,'join',{player:id});r=action(r,'jack','start',{},time-INTRO_DURATION-INTRO_LEAD_IN);r=action(r,'jack','choose');if(loaded)for(const id of ids)r=action(r,id,'memory_loaded');return r;}
 const view=(r,id='jack',now=time)=>snapshot(r,actors[id],seen,now);
 const playAt=time+MEMORY_LEAD_MS+MEMORY_PREVIEW_MS;
 function ready(ids){const r=action(setup(ids),'jack','memory_start');settleMemory(r.rounds.memory,playAt);return r;}
@@ -25,4 +25,26 @@ test('everybody must complete all pairs; places depend on clicks rather than fin
 test('equal clicks share competition ranks and points, without any speed tie-break',()=>{let r=ready();for(const[id,misses]of [['jack',0],['stu',0],['richard',1],['lauren',2]])r=solve(r,id,misses);assert.deepEqual(r.rounds.memory.results.map(p=>[p.rank,p.points]),[[1,5],[1,5],[3,1],[4,0]]);let all=ready();for(const id of all.rounds.memory.turns)all=solve(all,id);assert.ok(all.rounds.memory.results.every(p=>p.rank===1&&p.points===5&&!p.last));let last=ready();for(const[id,misses]of [['jack',0],['stu',1],['richard',2],['lauren',2]])last=solve(last,id,misses);assert.deepEqual(last.rounds.memory.results.slice(2).map(p=>[p.rank,p.points,p.last]),[[3,1,true],[3,1,true]]);});
 test('solo counts clicks and finishes normally without awarding competition points or a losing label',()=>{let r=solve(ready(['jack']),'jack',1);const s=view(r,'jack',playAt+100000).round;assert.equal(s.solo,true);assert.equal(s.complete,true);assert.equal(s.clicks,26);assert.equal(s.found,12);assert.equal(s.results[0].points,0);assert.equal(s.results[0].last,false);assert.equal(r.ledger.length,0);r=action(r,'jack','memory_finish',{},playAt+100000);assert.equal(r.stage,'round_end');});
 test('spectators, excluded players, stale boards and manual controls cannot bypass ranking',()=>{const r=ready();for(const type of ['timer','award','next','reveal','performer'])assert.throws(()=>action(r,'jack',type,{index:0,points:3},playAt),/Memory Match/);assert.throws(()=>action(r,'jack','answer',{index:0,answer:'jack'},playAt),/closed/);assert.throws(()=>transition(r,{key:'observer'},{type:'memory_flip',game:'memory',roundId:r.rounds.memory.id,turn:0,position:0},seen,playAt),/Join/);assert.throws(()=>flip(r,'jack',0,playAt,{roundId:'old'}),/moved on/);assert.throws(()=>flip(ready(['jack']),'stu',0),/Join/);assert.throws(()=>action(r,'jack','memory_skip',{},playAt),/Unknown/);});
-test('existing shared boards restart with the new rules while preserving all other scores and games',()=>{let r=setup();const old=r.rounds.memory,deck=[...old.deck];r.rounds.memory={id:old.id,deck,turns:old.turns,phase:'complete',complete:true};r.stage='round_end';r.rounds.pitch={index:2,complete:false};r.ledger=[{key:`memory:${old.id}:jack`,player:'jack',points:1,source:'old pair'},{key:'pictionary:a',player:'stu',points:1,source:'Pictionary'},{key:'adjust:1',player:'jack',points:2,source:'Bonus'}];const before=structuredClone(r),s=view(r);assert.deepEqual(r,before);assert.equal(s.stage,'playing');assert.equal(s.round.phase,'ready');assert.equal(s.round.updatedRules,true);assert.equal(s.players.find(p=>p.id==='jack').score,2);r=transition(r,actors.jack,{type:'memory_start',game:'memory',roundId:s.round.roundId,requestId:crypto.randomUUID()},seen,time);assert.equal(r.rounds.memory.rulesVersion,2);assert.deepEqual(r.rounds.memory.deck,deck);assert.deepEqual(r.rounds.pitch,{index:2,complete:false});assert.equal(r.ledger.length,2);assert.equal(r.rounds.memory.phase,'preview');});
+test('existing shared boards restart with the new rules while preserving all other scores and games',()=>{let r=setup();const old=r.rounds.memory,deck=[...old.deck];r.rounds.memory={id:old.id,deck,turns:old.turns,phase:'complete',complete:true};r.stage='round_end';r.rounds.pitch={index:2,complete:false};r.ledger=[{key:`memory:${old.id}:jack`,player:'jack',points:1,source:'old pair'},{key:'pictionary:a',player:'stu',points:1,source:'Pictionary'},{key:'adjust:1',player:'jack',points:2,source:'Bonus'}];const before=structuredClone(r),s=view(r);assert.deepEqual(r,before);assert.equal(s.stage,'playing');assert.equal(s.round.phase,'ready');assert.equal(s.round.updatedRules,true);assert.equal(s.players.find(p=>p.id==='jack').score,2);for(const id of old.turns)r=transition(r,actors[id],{type:'memory_loaded',game:'memory',roundId:s.round.roundId,requestId:crypto.randomUUID()},seen,time);r=transition(r,actors.jack,{type:'memory_start',game:'memory',roundId:s.round.roundId,requestId:crypto.randomUUID()},seen,time);assert.equal(r.rounds.memory.rulesVersion,2);assert.deepEqual(r.rounds.memory.deck,deck);assert.deepEqual(r.rounds.pitch,{index:2,complete:false});assert.equal(r.ledger.length,2);assert.equal(r.rounds.memory.phase,'preview');});
+
+// Loading readiness is authenticated and required only before the first preview.
+test('preview waits for every laptop and clients cannot mark another player loaded',()=>{
+ let r=setup(undefined,false);assert.deepEqual(view(r).round.loaded,[]);
+ assert.throws(()=>action(r,'jack','memory_start'),/pictures/);
+ r=action(r,'jack','memory_loaded',{player:'lauren',loaded:['jack','stu','richard','lauren']});
+ assert.deepEqual(view(r).round.loaded,['jack']);
+ r=action(r,'jack','memory_loaded');assert.deepEqual(view(r).round.loaded,['jack']);
+ assert.throws(()=>action(r,'jack','memory_start'),/pictures/);
+ assert.throws(()=>transition(r,{key:'observer'},{type:'memory_loaded',game:'memory',roundId:r.rounds.memory.id},seen,time),/Join/);
+ for(const id of ['richard','stu','lauren'])r=action(r,id,'memory_loaded');
+ r=action(r,'jack','memory_start');assert.equal(r.rounds.memory.deadline-r.rounds.memory.previewAt,8000);
+ const deadline=r.rounds.memory.deadline;r=action(r,'jack','memory_loaded');assert.equal(r.rounds.memory.deadline,deadline);
+});
+test('existing ready boards gain readiness, while games already in play retain progress',()=>{
+ let r=setup(undefined,false);delete r.rounds.memory.loaded;
+ assert.deepEqual(view(r).round.loaded,[]);for(const id of r.rounds.memory.turns)r=action(r,id,'memory_loaded');
+ r=action(r,'jack','memory_start');settleMemory(r.rounds.memory,playAt);r=flip(r,'jack',0);
+ delete r.rounds.memory.loaded;const before=view(r,'jack',playAt).round;
+ r=action(r,'jack','memory_loaded',{},playAt);assert.equal(view(r,'jack',playAt).round.clicks,before.clicks);
+ assert.deepEqual(view(r,'jack',playAt).round.cards,before.cards);
+});

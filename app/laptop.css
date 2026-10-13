@@ -1,0 +1,52 @@
+/* Laptop controls stay readable; StageFit remains the overflow safety net. */
+.header-action{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:36px;padding:7px 11px;border:1px solid #e8cf9250;border-radius:7px;background:#ffffff05;color:var(--paper);font-size:15px;white-space:nowrap}
+.header-action span{font-size:11px}.header-action:hover{background:#e8cf9218;border-color:var(--gold)}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #ffe3a1;outline-offset:3px}
+.game-dialog{width:min(760px,94vw);max-height:calc(100dvh - 32px)}
+.help-games{display:grid;grid-template-columns:1fr 1fr;gap:12px}.help-games.single-guide{grid-template-columns:1fr}
+.help-games article{border:1px solid var(--line);border-radius:9px;padding:14px;background:#ffffff04}
+.help-games h3{font:500 24px var(--serif);color:var(--gold);margin:0 0 8px}.help-games strong{font-size:12px;line-height:1.5;color:#f9e4b5}
+.game-dialog .help-games p{font-size:12px;line-height:1.6;margin:8px 0 0}.game-dialog .help-shortcuts{padding-top:9px;border-top:1px solid var(--line);color:#e5d8b5}
+.host-menu-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px}.host-menu-actions button{min-height:46px;padding:11px;border:1px solid #e8cf9260;border-radius:8px;background:#e8cf9210;color:var(--paper);font-size:13px}.host-menu-actions .danger{color:#ffbdab;border-color:#d08b7270;background:#b2472510}
+.keyboard-hint{font-size:11px;color:var(--muted);text-align:center;margin:8px 0}.word-setting>small.word-validation{color:#ffd39c}
+.sea-columns .aim-axis,.sea-rows .aim-axis{background:#ffdc72;color:#173c32;font-weight:800;border-radius:2px}
+.memory-card[aria-disabled=true]{cursor:default}.memory-card[aria-disabled=true]:hover .memory-card-back{border-color:#cbb37580;background-color:#184333;box-shadow:inset 0 0 0 5px #163c30,inset 0 0 0 6px #cbb37526,0 3px 8px #04170e25}
+.memory-card[aria-disabled=false]:hover .memory-card-back{border-color:#ffe3a1}
+.battle-active .memory-error{grid-column:1/-1}
+@media(min-width:1000px){
+ .game-header{padding:6px 22px;gap:16px}.brand-anchor{height:42px}.room-label{font-size:9px;letter-spacing:1px}.header-buttons{gap:8px}.you-badge{font-size:12px}.you-badge .avatar{width:32px}.you-badge small{font-size:7px}
+ .game-world[data-stage="playing"] .game-main.screen-frame{width:calc(100% - 40px);max-width:1440px;margin:6px auto}
+ .game-world[data-stage="playing"] .score-strip{width:calc(100% - 40px);max-width:1440px;gap:10px;margin:0 auto 8px;grid-template-columns:repeat(4,minmax(0,1fr))}
+ .score-chip{padding:6px 12px;gap:9px;min-height:43px}.score-chip strong{font-size:12px}.score-chip span:not(.avatar){font-size:8px}.score-chip .avatar{width:29px}.score-chip b{font-size:23px}.score-chip small{display:inline;font-size:8px;margin-left:4px}
+ .pictionary-stage,.hangman-stage{max-width:1320px}.round-titlebar h1,.pictionary-stage .round-titlebar h1{font-size:30px}.round-titlebar .eyebrow{font-size:10px}.timer-disc,.pictionary-stage .timer-disc{width:54px;height:54px}.timer-disc span{font-size:7px}
+ .control-buttons .button,.memory-controls .button,.battle-controls .button{min-height:36px;font-size:12px;padding:8px 16px}.host-round-controls{margin-top:8px;padding-top:8px}.waiting-for-host{font-size:12px}
+ .pictionary-stage{--draw-height:clamp(190px,calc(var(--stage-height,620px) - 222px),650px)}
+ .pictionary-stage:not(.has-tools){--draw-height:clamp(220px,calc(var(--stage-height,620px) - 178px),680px)}
+ .pictionary-turns{margin:8px 0;gap:10px}.pictionary-turns>div{padding:6px 11px}.pictionary-turns strong{font-size:12px}.pictionary-turns small{font-size:9px}.pictionary-turns .avatar{width:28px}
+ .pictionary-layout{grid-template-columns:minmax(0,1fr) 310px;gap:16px;align-items:stretch}
+ .drawing-toolbar{gap:10px;padding:7px 10px;flex-wrap:nowrap}.ink-colour{width:28px;height:28px}.ink-colours{gap:6px}.brush-picker{font-size:11px}.brush-picker select{font-size:12px}.canvas-actions{gap:10px}.canvas-actions button{font-size:11px;min-height:28px}
+ .drawing-pad{height:var(--draw-height);border-radius:9px}.has-tools .drawing-pad{border-radius:0 0 9px 9px}.drawing-toolbar{border-radius:9px 9px 0 0}.drawing-pad svg{max-width:100%;height:100%;width:auto}
+ .pad-caption{font-size:10px;line-height:1.3;margin-top:6px}.pad-caption>span:last-child{display:none}
+ .guess-column{display:flex;flex-direction:column;max-height:calc(var(--draw-height) + 62px)}
+ .secret-word{min-height:70px;flex-shrink:0;padding:9px 13px;border:0;border-bottom:1px solid var(--line);border-radius:10px 10px 0 0}.secret-word>span{font-size:9px;letter-spacing:.7px}.secret-word strong{font-size:24px;margin:4px 0}.secret-word small{font-size:10px}
+ .guess-heading{padding:10px 13px;flex-shrink:0}.guess-heading h2{font-size:22px;margin-bottom:4px}.guess-heading p{font-size:11px;line-height:1.45}.guess-heading .eyebrow{display:none}
+ .guess-history{height:auto;flex:1 1 50px;min-height:32px;padding:5px 13px;overscroll-behavior:contain}.guess-history strong{font-size:11px}.guess-history span{font-size:13px}.guess-history>div{padding:4px 0}
+ .pictionary-guess{flex-shrink:0;padding:9px 12px}.pictionary-guess label{font-size:11px;margin-bottom:5px}.pictionary-guess input{font-size:15px;min-height:38px}.pictionary-guess .button{font-size:12px;min-height:35px;margin-top:6px}.drawing-rules{font-size:11px;padding:9px 13px}.drawing-result{padding:10px}.drawing-result>span{display:none}.drawing-result strong{font-size:14px}
+ .hangman-layout{grid-template-columns:minmax(280px,36%) minmax(0,1fr);gap:30px;margin-top:12px}.hangman-scene{padding:13px}.hangman-elf{height:clamp(180px,calc(var(--stage-height,620px) - 210px),380px)}
+ .hangman-category .eyebrow,.hangman-board-heading .eyebrow{font-size:10px}.hangman-category h2{font-size:29px}.elf-caption{font-size:12px}.hangman-lives>span{font-size:9px}.hangman-board-heading p:not(.eyebrow){font-size:13px;line-height:1.5}
+ .hangman-word{margin:17px 0}.letter-tile{height:43px;font-size:25px}.hangman-keyboard{margin:9px 0}.hangman-keyboard button{height:40px;flex-basis:49px;font-size:16px}.hangman-solve label{font-size:12px}.hangman-solve input{font-size:15px}.hangman-recent{font-size:12px;min-height:24px}.hangman-team{font-size:11px}.word-setting>p:not(.eyebrow),.hangman-waiting p{font-size:14px}.word-setting>small,.word-confirm{font-size:12px}.word-setting>label:not(.word-confirm){font-size:13px}
+ .memory-stage{max-width:1200px}.memory-heading h1{font-size:33px}.memory-heading .eyebrow{font-size:10px}.memory-counter span{font-size:10px;letter-spacing:.5px}.memory-counter strong{font-size:32px}.memory-players>div{max-width:none;padding:6px 12px}.memory-players>div>span:nth-child(2){font-size:12px}.memory-players small{font-size:9px;letter-spacing:.3px}.memory-status{font-size:13px;min-height:31px}
+ .memory-board{max-width:1100px;height:clamp(230px,calc(var(--stage-height,620px) - 205px),650px);gap:10px}.memory-card-number{font-size:12px}.memory-picture-label{font-size:12px}.memory-card-small{font-size:7px}.memory-match-mark{font-size:9px}.memory-controls>span{font-size:10px;letter-spacing:.2px}.memory-wait{font-size:11px}
+ .battle-active .battle-heading .eyebrow{font-size:9px}.battle-active .battle-turn-banner{width:clamp(390px,46vw,700px)}.battle-turn-banner>div>span{font-size:12px}.battle-turn-banner .turn-announcement{font-size:26px}.naval-sound{min-height:36px;font-size:11px}
+ .battle-active .naval-arena{--board-side:max(120px,calc((var(--stage-height,660px) - 116px)/var(--sea-rows) - 65px));padding:6px;gap:8px}
+ .battle-active .naval-board>header{min-height:31px}.battle-active .naval-board>header h2{font-size:13px}.battle-active .naval-board>header p{font-size:8px}.battle-active .naval-board.captain-turn>header .board-turn-label{font-size:8px}.battle-active .naval-board>footer{font-size:9px;min-height:18px}.battle-active .sea-columns span,.battle-active .sea-rows span{font-size:10px}
+ .battle-active .sea-shell{grid-template-columns:14px minmax(0,1fr);grid-template-rows:14px minmax(0,1fr)}.battle-active .naval-commentary{font-size:12px}.battle-active .naval-commentary strong{font-size:10px}.battle-active .battle-controls>div>span{font-size:11px}.battle-active .fire-instruction{display:none}
+ .fleet-workshop{max-width:1000px;--board-side:clamp(200px,calc(var(--stage-height,620px) - 220px),440px);gap:36px}.battle-status{font-size:13px;min-height:30px}.fleet-editor h2{font-size:31px}.fleet-editor .eyebrow{font-size:10px}.fleet-editor .fleet-ship-picker button{font-size:13px;min-height:50px}.ship-coordinate{font-size:13px}.ship-arrows{grid-template-columns:repeat(3,46px);grid-template-rows:repeat(3,37px)}.rotate-ship{font-size:13px}.placement-hint,.fleet-auto-start{font-size:12px}.fleet-confirm .button{font-size:13px;min-height:40px}.fleet-ready-list>div{font-size:12px}
+ .game-card p{font-size:13px;line-height:1.6}.game-card-top,.game-card-bottom{font-size:10px}.game-card{min-height:250px}.game-menu .subtitle,.lobby .subtitle{font-size:14px}
+}
+@media(min-width:1000px) and (max-height:700px){
+ .game-header{padding-top:4px;padding-bottom:4px}.brand-anchor{height:36px}.score-chip{min-height:38px;padding:4px 10px}.score-chip .avatar{width:26px}
+ .pictionary-stage{--draw-height:clamp(160px,calc(var(--stage-height,510px) - 205px),400px)}.pictionary-stage:not(.has-tools){--draw-height:clamp(200px,calc(var(--stage-height,510px) - 165px),440px)}.pictionary-turns small{display:none}.pictionary-turns>div{padding:4px 9px}.guess-heading p{display:none}.drawing-rules{font-size:10px;line-height:1.45}.guess-column .secret-word{min-height:64px}.memory-board{height:clamp(200px,calc(var(--stage-height,510px) - 187px),440px)}.memory-players>div{padding:4px 9px}.hangman-word{margin:10px 0}.hangman-keyboard button{height:35px}.hangman-keyboard{gap:4px}.hangman-solve{margin-top:8px}.hangman-board-heading .eyebrow{margin-bottom:4px}.hangman-layout{gap:22px}.keyboard-hint{margin:5px 0}.hangman-recent{margin-top:6px}.word-setting>p:not(.eyebrow){margin-bottom:9px}
+}
+@media(max-width:999px){.header-action{padding:5px 8px;min-height:32px}.header-action span{font-size:9px}.header-buttons{gap:5px}.help-games{grid-template-columns:1fr}.guess-column>.secret-word{border-radius:0}.host-menu-actions{grid-template-columns:1fr}}
+@media(max-width:600px){.header-action span{display:none}}
