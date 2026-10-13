@@ -141,6 +141,7 @@ try{
  assert.equal((await players.jack.request(memoryCommand(mem,'memory_flip',{position:first}))).status,400);
  assert.equal((await players.jack.request(memoryCommand(mem,'memory_finish'))).data.stage,'round_end');
  // Battleships runs through the same four independent sessions and real API.
+ async function advanceBattleAnimation(){const row=await db.prepare('SELECT id,body FROM game_rooms').first();const room=JSON.parse(row.body),r=room.rounds.battleships,delta=Math.max(0,(r.animationUntil||0)-Date.now()+1);if(!delta)return;r.animationUntil-=delta;for(const e of r.events)for(const key of ['startsAt','impactAt','endsAt'])if(e[key])e[key]-=delta;for(const f of Object.values(r.fleets))for(const shot of f.shots)if(shot?.impactAt)shot.impactAt-=delta;await db.prepare('UPDATE game_rooms SET body=?,version=version+1 WHERE id=?').bind(JSON.stringify(room),row.id).run();}
  async function battleState(c=players.jack){return (await c.request()).data.round;}
  function battleCommand(state,type,extra={}){return{type,game:'battleships',roundId:state.roundId,turn:state.turn,revision:state.fleets.find(f=>f.revision!==null)?.revision,...extra};}
  assert.equal((await players.jack.request({type:'menu'})).status,200);
@@ -162,9 +163,10 @@ try{
  assert.equal((await observer.request(battleCommand(battle,'battle_fire',{target:defender,position:firstShot}))).status,400);
  const salvos=await Promise.all([0,1,2].map(i=>players[shooter].request(battleCommand(battle,'battle_fire',{target:defender,position:secrets[defender][i]}))));
  assert.equal(salvos.filter(r=>r.status===200).length,1);
- const afterSalvo=await battleState();assert.equal(afterSalvo.fleets.find(f=>f.id===shooter).fired,1);assert.notEqual(afterSalvo.performer,shooter);
+ const afterSalvo=await battleState();assert.ok(afterSalvo.animationUntil>Date.now());assert.equal(afterSalvo.fleets.find(f=>f.id===defender).cells.filter(c=>c.shot).length,0);assert.equal(afterSalvo.fleets.find(f=>f.id===shooter).fired,1);assert.notEqual(afterSalvo.performer,shooter);
  for(const c of Object.values(players)){const response=await battleState(c);assert.deepEqual(response.events,afterSalvo.events);}
  assert.equal((await players[shooter].request(battleCommand(battle,'battle_fire',{target:defender,position:secrets[defender][3]}))).status,409);
+ const duringBomb=await players[afterSalvo.performer].request(battleCommand(afterSalvo,'battle_fire',{target:shooter,position:0}));assert.equal(duringBomb.status,400);assert.match(duringBomb.data.error,/animation/);
  battle=afterSalvo;
  assert.equal((await players.jack.request(battleCommand(battle,'battle_pause'))).status,200);
  assert.equal((await players.jack.request({type:'menu'})).status,200);
@@ -176,7 +178,7 @@ try{
  // secrets to exercise a complete battle quickly, without modifying game state.
  const attacked=new Set();
  for(let i=0;i<40;i++){
-  battle=await battleState();if(battle.complete)break;
+  await advanceBattleAnimation();battle=await battleState();if(battle.complete)break;
   const opponents=battle.fleets.filter(f=>f.id!==battle.performer&&!f.eliminated),target=opponents[i%opponents.length];
   const position=secrets[target.id].find(p=>!target.cells[p].shot);assert.notEqual(position,undefined);
   const response=await players[battle.performer].request(battleCommand(battle,'battle_fire',{target:target.id,position}));
@@ -232,12 +234,12 @@ try{
  assert.equal((await observer.request(battleCommand(soloBattle,'battle_ready',{ready:true}))).status,200);
  assert.equal((await observer.request(battleCommand(await battleState(observer),'battle_start'))).status,200);
  for(let i=0;i<64;i++){
-  soloBattle=await battleState(observer);if(soloBattle.complete)break;
+  await advanceBattleAnimation();soloBattle=await battleState(observer);if(soloBattle.complete)break;
   assert.equal(soloBattle.performer,'jack');const opponent=soloBattle.fleets.find(f=>f.bot),position=opponent.cells.find(c=>!c.shot).position;
   const response=await observer.request(battleCommand(soloBattle,'battle_fire',{target:opponent.id,position}));assert.equal(response.status,200,JSON.stringify(response.data));
  }
  soloBattle=await battleState(observer);assert.equal(soloBattle.complete,true);assert.ok(soloBattle.results.every(r=>r.points===0));assert.ok(soloBattle.fleets.find(f=>f.bot).fired>0);
  assert.equal((await observer.request()).data.players.find(p=>p.id==='jack').score,0);
  assert.equal((await observer.request(battleCommand(soloBattle,'battle_finish'))).data.stage,'round_end');
- console.log('Battleships integration passed: private fleets, concurrent locking, any-opponent targeting, one atomic shot per turn, shared hits, pause/refresh, full elimination ranking, 5/3/1/0 awards and automatic solo opponent. Memory integration passed: 24-card shared layout, private individual boards, simultaneous play, exactly-once click counting, fewest-click ranking, 5/3/1/0 awards, Nob head label, pause/resume, refresh and solo no-score. Hangman integration passed: private word, concurrent shared letters, duplicate life protection, cooperative scoring, setter exclusion, one rotation and solo play. Pictionary integration passed: private prompt, shared streamed drawing, concurrent guesses, one winner, timeout, rotation, solo practice. Solo and intro integration passed. Integration passed: no sign-in, Jack selection and host transfer, four independent sessions, concurrent joins/answers, persistent refresh, host-only controls, hidden answers, shared scoring, synchronised progression, stale actions and cross-origin protection.');
+ console.log('Battleships integration passed: private fleets in all phases, concurrent locking, any-opponent targeting, one shot per turn, impact-timed pegs, animation lock, pause/refresh, elimination ranking, 5/3/1/0 awards and queued solo animations. Memory integration passed: 24-card shared layout, private individual boards, simultaneous play, exactly-once click counting, fewest-click ranking, 5/3/1/0 awards, Nob head label, pause/resume, refresh and solo no-score. Hangman integration passed: private word, concurrent shared letters, duplicate life protection, cooperative scoring, setter exclusion, one rotation and solo play. Pictionary integration passed: private prompt, shared streamed drawing, concurrent guesses, one winner, timeout, rotation, solo practice. Solo and intro integration passed. Integration passed: no sign-in, Jack selection and host transfer, four independent sessions, concurrent joins/answers, persistent refresh, host-only controls, hidden answers, shared scoring, synchronised progression, stale actions and cross-origin protection.');
 }finally{await mf.dispose();}

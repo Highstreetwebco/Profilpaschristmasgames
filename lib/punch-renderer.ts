@@ -1,6 +1,7 @@
 import {puppetMesh,puppetBones,skinPuppet,puppetWorld} from './punch-puppet.js';
 type Pose={x:number;y:number;opacity:number;lean:number;upper:number;fore:number;gait:number;scale:number};
 export function createPunchRenderer(canvas:HTMLCanvasElement){
+ let viewWidth=480,viewHeight=355;
  const gl=canvas.getContext('webgl',{alpha:true,antialias:true,premultipliedAlpha:true});
  const ctx=gl?null:canvas.getContext('2d'),assets=new Map<string,{image:HTMLImageElement;ready:boolean;texture:WebGLTexture|null;mesh:ReturnType<typeof puppetMesh>}>();
  let disposed=false,lastId='',lastPose:Pose|null=null;
@@ -11,9 +12,9 @@ export function createPunchRenderer(canvas:HTMLCanvasElement){
  function clear(){if(gl){gl.viewport(0,0,canvas.width,canvas.height);gl.clear(gl.COLOR_BUFFER_BIT);}else ctx?.clearRect(0,0,canvas.width,canvas.height);}
  function draw(id:string,pose:Pose|null){lastId=id;lastPose=pose;if(disposed)return;clear();if(!pose)return;preload(id);const asset=assets.get(id)!;if(!asset.ready)return;const bones=puppetBones(id,pose),mesh=asset.mesh;
   const points=mesh.vertices.map(v=>{const [x,y]=puppetWorld(id,skinPuppet(v,bones),pose);return{x,y,u:v.u,v:v.v};});
-  if(gl){if(gl.isContextLost())return;const data=new Float32Array(points.length*4);points.forEach((p,i)=>{data.set([p.x/240-1,1-p.y/177.5,p.u,p.v],i*4);});gl.bindTexture(gl.TEXTURE_2D,asset.texture);gl.uniform1f(opacity,pose.opacity);gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,data,gl.DYNAMIC_DRAW);gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,indices);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,mesh.indices,gl.STATIC_DRAW);gl.drawElements(gl.TRIANGLES,mesh.indices.length,gl.UNSIGNED_SHORT,0);return;}
-  if(!ctx)return;ctx.save();ctx.scale(canvas.width/480,canvas.height/355);ctx.globalAlpha=pose.opacity;
+  if(gl){if(gl.isContextLost())return;const data=new Float32Array(points.length*4);points.forEach((p,i)=>{data.set([p.x/(viewWidth/2)-1,1-p.y/(viewHeight/2),p.u,p.v],i*4);});gl.bindTexture(gl.TEXTURE_2D,asset.texture);gl.uniform1f(opacity,pose.opacity);gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,data,gl.DYNAMIC_DRAW);gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,indices);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,mesh.indices,gl.STATIC_DRAW);gl.drawElements(gl.TRIANGLES,mesh.indices.length,gl.UNSIGNED_SHORT,0);return;}
+  if(!ctx)return;ctx.save();ctx.scale(canvas.width/viewWidth,canvas.height/viewHeight);ctx.globalAlpha=pose.opacity;
   for(let k=0;k<mesh.indices.length;k+=3){const [a,b,c]=[mesh.indices[k],mesh.indices[k+1],mesh.indices[k+2]].map(i=>({...points[i],u:points[i].u*asset.image.width,v:points[i].v*asset.image.height}));const d=a.u*(b.v-c.v)+b.u*(c.v-a.v)+c.u*(a.v-b.v);if(!d)continue;const m11=(a.x*(b.v-c.v)+b.x*(c.v-a.v)+c.x*(a.v-b.v))/d,m12=(a.y*(b.v-c.v)+b.y*(c.v-a.v)+c.y*(a.v-b.v))/d,m21=(a.x*(c.u-b.u)+b.x*(a.u-c.u)+c.x*(b.u-a.u))/d,m22=(a.y*(c.u-b.u)+b.y*(a.u-c.u)+c.y*(b.u-a.u))/d,dx=(a.x*(b.u*c.v-c.u*b.v)+b.x*(c.u*a.v-a.u*c.v)+c.x*(a.u*b.v-b.u*a.v))/d,dy=(a.y*(b.u*c.v-c.u*b.v)+b.y*(c.u*a.v-a.u*c.v)+c.y*(a.u*b.v-b.u*a.v))/d;ctx.save();ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.lineTo(c.x,c.y);ctx.closePath();ctx.clip();ctx.transform(m11,m12,m21,m22,dx,dy);ctx.drawImage(asset.image,0,0);ctx.restore();}ctx.restore();
  }
- return{draw,preload,dispose(){disposed=true;for(const a of assets.values()){a.image.onload=null;gl?.deleteTexture(a.texture);}if(gl){gl.deleteBuffer(buffer);gl.deleteBuffer(indices);gl.deleteProgram(program);gl.deleteShader(vertex);gl.deleteShader(fragment);}}};
+ return{draw,preload,setView(width:number,height:number){viewWidth=width;viewHeight=height;},dispose(){disposed=true;for(const a of assets.values()){a.image.onload=null;gl?.deleteTexture(a.texture);}if(gl){gl.deleteBuffer(buffer);gl.deleteBuffer(indices);gl.deleteProgram(program);gl.deleteShader(vertex);gl.deleteShader(fragment);}}};
 }
